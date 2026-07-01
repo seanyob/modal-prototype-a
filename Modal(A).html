@@ -1,0 +1,2758 @@
+<!DOCTYPE html>
+<!--
+  Alaska Airlines Reservation Prototype — iPad Mini fixed viewport (744 x 1133)
+  ────────────────────────────────────────────────────────────────────────────
+  The prototype renders at a fixed iPad Mini portrait size regardless of the
+  device it's opened on. On desktops or wider tablets the canvas is centered
+  on a dark grey backdrop; on smaller screens the canvas overflows and scrolls
+  in place — no auto-scaling. Add to Home Screen on a real iPad Mini for a
+  chrome-less 1:1 experience.
+  Self-contained: no external fonts, scripts, or network calls.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="EADIKU">
+<meta name="format-detection" content="telephone=no">
+<title>EADIKU — Reservation</title>
+<title>EADIKU — Reservation</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --ink: #1a1a1a;
+    --ink-2: #4a4a4a;
+    --muted: #8a8f96;
+    --line: #e5e7eb;
+    --line-2: #d9dde2;
+    --brand: #0074C8;          /* CTA blue */
+    --brand-hover: #005fa3;
+    --green: #1f9d4b;
+    --green-soft: #d8f0df;
+    --warn: #2a7a3c;
+    --shadow: 0 1px 0 rgba(16,24,40,.04), 0 1px 2px rgba(16,24,40,.06);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  button, [role="button"] { touch-action: manipulation; }
+  body {
+    /* Dark grey/black surround so the fixed-size iPad Mini stage sits like a design-tool canvas */
+    background: #111214;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  /* Screen — fixed iPad Mini portrait dimensions (744 x 1133 CSS points).
+     Everything inside positions relative to this stage; nothing scales to the browser. */
+  .screen {
+    position: relative;
+    width: 744px;
+    height: 1133px;
+    background: #fff;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  /* Status bar — hidden when running on real device (iPad OS shows its own) */
+  .statusbar { display: none; }
+
+  /* Top nav */
+  .topnav {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 6px 22px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .back {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--brand); font-size: 17px;
+    text-decoration: none; cursor: pointer;
+    background: none; border: 0; padding: 0;
+  }
+  .back:hover { color: var(--brand-hover); }
+  .pnr { font-size: 17px; font-weight: 600; letter-spacing: 0.04em; text-align: center; }
+  .top-actions { display: flex; justify-content: flex-end; gap: 18px; color: var(--brand); }
+  .icon-btn {
+    background: none; border: 0; padding: 4px;
+    color: var(--brand); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 6px; transition: background .15s ease;
+    position: relative;
+  }
+  .icon-btn:hover { background: rgba(0,116,200,.08); }
+  .icon-btn .badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 8px; height: 8px;
+    background: #e02b2b; border-radius: 50%;
+    border: 1.5px solid #fff;
+  }
+
+  /* Flight status strip */
+  .status-strip {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 22px;
+    padding: 10px 22px;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+  }
+  .dtag {
+    background: #1f7d3a; color: #fff;
+    font-weight: 600; font-size: 17px;
+    padding: 8px 14px; border-radius: 2px;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .status-strip .label { font-size: 15px; color: var(--ink-2); }
+  .route {
+    font-size: 15px; color: var(--ink);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .route .arrow { color: var(--muted); }
+  .aircraft { font-size: 15px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+  /* Itinerary section */
+  .section { padding: 18px 22px; background: #fff; }
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .section-title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .link {
+    color: var(--brand); font-size: 16px; text-decoration: none;
+    cursor: pointer; background: none; border: 0; font-weight: 500;
+  }
+  .link:hover { color: var(--brand-hover); text-decoration: underline; }
+
+  .itin {
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 14px; background: #fff;
+  }
+  .itin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .day-label { font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+  .day-label strong { color: var(--ink); font-weight: 600; margin-right: 4px; }
+
+  .flight-card {
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; background: #fff;
+    transition: border-color .15s ease, box-shadow .15s ease;
+    cursor: pointer;
+  }
+  .flight-card:hover { border-color: var(--line-2); box-shadow: var(--shadow); }
+  .flight-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .flight-meta { display: flex; align-items: center; gap: 10px; }
+  .flight-logo { width: 30px; height: 30px; flex-shrink: 0; }
+  .flight-no { font-weight: 600; font-size: 15px; }
+  .carrier { font-size: 12px; color: var(--muted); }
+  .ontime {
+    background: var(--green-soft); color: var(--warn);
+    font-size: 12px; font-weight: 600;
+    padding: 4px 10px; border-radius: 3px;
+  }
+  .leg { display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 8px; }
+  .station { display: flex; align-items: baseline; gap: 6px; }
+  .station .code {
+    font-size: 34px; font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1;
+  }
+  .station .gate { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+  .time { font-size: 15px; color: var(--ink-2); margin-top: 6px; }
+  .right-align { text-align: right; }
+  .right-align .station { justify-content: flex-end; }
+
+  /* iOS-style search field above the guests header */
+  .guest-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 22px 10px;
+    background: #fff;
+    border-top: 1px solid var(--line);
+  }
+  .guest-search {
+    flex: 1;
+    position: relative;
+    background: #eef0f3;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    height: 44px;
+    transition: background .15s ease;
+  }
+  .guest-search:focus-within {
+    background: #e5e7eb;
+  }
+  .guest-search-icon {
+    color: #6b7280;
+    flex-shrink: 0;
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+  }
+  .guest-search input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    outline: none;
+    font-size: 16px;
+    color: var(--ink);
+    font-family: inherit;
+    padding: 0;
+    height: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .guest-search input::-webkit-search-cancel-button,
+  .guest-search input::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+  .guest-search input::placeholder { color: #8a8f96; }
+  .guest-search-clear {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin-left: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  /* Cancel link beside the search field when active (iOS pattern) */
+  .guest-search-cancel {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--brand);
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .guest-search-cancel:active { opacity: 0.7; }
+
+  /* Guests header — unified row: count + Select All on left, nav links on right */
+  .guests-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 22px 10px;
+    background: #fff;
+    gap: 16px;
+  }
+  .guests-head .head-left {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    min-width: 0;
+  }
+  .guests-count { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .guests-count .selected-frac {
+    color: var(--muted);
+    font-weight: 500;
+    margin-right: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .head-links { display: flex; gap: 22px; flex-shrink: 0; }
+
+  /* Scrollable guest list */
+  .guests {
+    background: #fff;
+    overflow-y: auto;
+    padding-bottom: 90px;
+    border-top: 1px solid var(--line);
+    /* Fixed pixel height that fits inside the 1133-tall stage
+       given the itinerary, search, and header sections above and the footer CTA below. */
+    max-height: 673px;
+    min-height: 300px;
+  }
+  .guests::-webkit-scrollbar { width: 10px; }
+  .guests::-webkit-scrollbar-track { background: transparent; }
+  .guests::-webkit-scrollbar-thumb { background: #d6d9de; border-radius: 10px; border: 2px solid #fff; }
+  .guests::-webkit-scrollbar-thumb:hover { background: #b9bec5; }
+
+  .guest { padding: 18px 22px 22px; border-bottom: 1px solid var(--line); }
+  .guest-top {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  }
+  .guest-id {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 18px; font-weight: 600; letter-spacing: -0.01em;
+  }
+  .checkbox {
+    appearance: none; -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border: 1.5px solid #b8bcc2; border-radius: 50%;
+    background: #fff; cursor: pointer;
+    position: relative; flex-shrink: 0;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .checkbox:hover { border-color: var(--brand); }
+  .checkbox:checked { background: var(--brand); border-color: var(--brand); }
+  .checkbox:checked::after {
+    content: ""; position: absolute;
+    left: 6px; top: 2px;
+    width: 5px; height: 11px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .add-btn {
+    border: 1.5px solid var(--brand);
+    color: var(--brand); background: #fff;
+    border-radius: 999px;
+    padding: 6px 22px;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.04em; cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .add-btn:hover { background: var(--brand); color: #fff; }
+
+  .check-pill-row {
+    display: flex; flex-direction: column;
+    align-items: flex-start;
+    margin: 12px 0 14px 34px; gap: 4px;
+  }
+  .check-pill {
+    background: #d3edda; color: #1a5e2e;
+    font-size: 14px; font-weight: 500;
+    padding: 6px 16px 6px 12px;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .not-checked-pill {
+    background: #fff5d6; color: #8a6a00;
+    font-size: 14px; font-weight: 500;
+    padding: 6px 16px;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .check-pill .dot {
+    width: 18px; height: 18px;
+    background: var(--green); border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff;
+  }
+  .leg-mini {
+    font-size: 12px; color: var(--muted);
+    letter-spacing: 0.05em; padding-left: 4px;
+  }
+
+  .fields {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-left: 34px;
+  }
+  .field {
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 12px 14px;
+    min-height: 130px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .field:hover { border-color: var(--line-2); box-shadow: var(--shadow); }
+  .field-label {
+    font-size: 14px; font-weight: 600;
+    color: var(--ink); margin-bottom: 8px;
+  }
+  .field-value {
+    font-size: 24px; font-weight: 600;
+    color: var(--ink); letter-spacing: -0.01em;
+  }
+  .field-list {
+    font-size: 13px; color: var(--ink-2);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .field-list .row { display: flex; align-items: center; gap: 6px; }
+  .check-mark { color: var(--green); font-weight: 700; width: 12px; display: inline-block; }
+  .dash-mark { color: var(--muted); font-weight: 600; width: 12px; display: inline-block; }
+  .field-add {
+    color: var(--brand); font-size: 14px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+    cursor: pointer; background: none; border: 0; padding: 0;
+  }
+  .field-add:hover { color: var(--brand-hover); }
+  .plus {
+    display: inline-flex;
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--brand);
+    border-radius: 50%;
+    align-items: center; justify-content: center;
+    font-size: 12px; line-height: 1; font-weight: 600;
+  }
+
+  .bp-btn {
+    margin-top: 10px; align-self: stretch;
+    background: #fff;
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 10px 12px;
+    color: var(--brand); font-size: 13px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .bp-btn:hover { background: #eaf4fc; border-color: #b9d5ea; }
+
+  /* Modal overlay (Add Bags) */
+  .modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    opacity: 0;
+    transition: opacity .18s ease;
+  }
+  .modal-overlay.show { display: flex; opacity: 1; }
+
+  .modal {
+    width: 100%;
+    min-width: 580px;
+    min-height: 640px;
+    max-width: 580px;
+    background: #eef0f3;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,.45);
+    transform: scale(.96);
+    transition: transform .18s ease;
+    display: flex;
+    flex-direction: column;
+    max-height: 974px;
+  }
+  .modal-overlay.show .modal { transform: scale(1); }
+
+  .modal-header {
+    background: #fff;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 16px 18px;
+    border-bottom: 1px solid #e7e9ed;
+  }
+  .modal-header .h-left { text-align: left; }
+  .modal-header .h-right { text-align: right; }
+  .modal-header button {
+    background: none; border: 0; padding: 0;
+    color: var(--brand);
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .modal-header button:hover { color: var(--brand-hover); }
+  .modal-header .modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 18px 24px;
+    background: #eef0f3;
+  }
+
+  .modal-section {
+    margin-bottom: 16px;
+  }
+  .modal-section-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .modal-section-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .modal-card {
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .modal-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    border-bottom: 1px solid #f0f1f3;
+    background: #fff;
+  }
+  .modal-row:last-child { border-bottom: 0; }
+  .modal-row-label { font-size: 16px; color: var(--ink); }
+  .modal-row-label.muted { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .bagtype-trigger {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--brand);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .bagtype-trigger:hover { color: var(--brand-hover); }
+  .bagtype-trigger .chev-y {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 0.5;
+    font-size: 10px;
+  }
+  .add-bag-row {
+    padding: 14px 18px;
+    background: #fff;
+    border-top: 1px solid #f0f1f3;
+  }
+  .add-bag-btn {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--brand);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .add-bag-btn:hover { color: var(--brand-hover); }
+
+  .modal-row.link-row {
+    cursor: pointer;
+    transition: background .12s ease;
+  }
+  .modal-row.link-row:hover { background: #f6f8fa; }
+  .modal-row .stack { display: flex; flex-direction: column; gap: 2px; }
+  .modal-row .link-label {
+    color: var(--brand);
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .modal-row .chev-r {
+    color: #b8bcc2;
+  }
+
+  .modal-footer {
+    padding: 14px 18px 18px 18px;
+    background: #eef0f3;
+    border-top: 1px solid #e7e9ed;
+  }
+  .modal-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    min-height: 20px;
+    line-height: 1.4;
+    font-size: 14px;
+  }
+  .modal-summary-row .summary-empty {
+    color: var(--muted);
+    font-style: italic;
+  }
+  .modal-summary-row .summary-left {
+    color: var(--ink-2);
+  }
+  .modal-summary-row .summary-left strong {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .modal-summary-row .summary-right {
+    color: var(--ink-2);
+  }
+  .modal-summary-row .summary-right .price {
+    color: #d04141;
+    font-weight: 700;
+    margin-left: 4px;
+  }
+  .modal-cta {
+    width: 100%;
+    background: #cfd3d8;
+    color: #fff;
+    border: 0;
+    border-radius: 10px;
+    padding: 14px 0;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: not-allowed;
+    transition: background .12s ease;
+  }
+  .modal-cta.active {
+    background: var(--brand);
+    cursor: pointer;
+  }
+  .modal-cta.active:hover { background: var(--brand-hover); }
+
+  /* Bag type picker (secondary popover) */
+  .bagtype-backdrop {
+    position: absolute; inset: 0;
+    background: transparent;
+    z-index: 250;
+    display: none;
+  }
+  .bagtype-backdrop.show { display: block; }
+
+  .bagtype-picker {
+    position: absolute;
+    width: 280px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.04);
+    z-index: 260;
+    overflow: hidden;
+    opacity: 0;
+    transform: scale(.96);
+    transform-origin: top right;
+    transition: opacity .14s ease, transform .14s ease;
+    pointer-events: none;
+  }
+  .bagtype-picker.show {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+  .bagtype-option {
+    display: block;
+    width: 100%;
+    background: #fff;
+    border: 0;
+    text-align: left;
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #ebecef;
+    transition: background .1s ease;
+  }
+  .bagtype-option:last-child { border-bottom: 0; }
+  .bagtype-option:hover { background: #f4f6f9; }
+  .bagtype-option.selected { background: #eef1f5; }
+  .bagtype-option .opt-title {
+    font-size: 16px;
+    color: var(--ink);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .bagtype-option .opt-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .bagtype-divider {
+    height: 6px;
+    background: #f0f1f3;
+    border-top: 1px solid #ebecef;
+    border-bottom: 1px solid #ebecef;
+  }
+
+  /* Success toast (Bags added) — anchored to the stage top */
+  .success-toast {
+    position: absolute;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-12px);
+    background: #fff;
+    border: 1.5px solid #1f9d4b;
+    border-radius: 10px;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.18);
+    min-width: 360px;
+    max-width: 520px;
+    opacity: 0;
+    transition: opacity .25s ease, transform .25s ease;
+    pointer-events: none;
+    z-index: 300;
+  }
+  .success-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .success-toast .icon {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #1f9d4b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .success-toast .text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .success-toast .title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .success-toast .sub {
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+
+  /* Bags field breakdown (Inactive Tags / All Tags) */
+  .field-breakdown {
+    margin-top: auto;
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .field-breakdown .br-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .field-breakdown .br-num {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+  }
+
+  /* Each bag type block in the body */
+  .bagtype-block {
+    margin-bottom: 16px;
+  }
+  .bagtype-block .modal-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .bagtype-remove {
+    background: none;
+    border: 0;
+    color: #d04141;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+  }
+  .bagtype-remove:hover { color: #a82c2c; }
+
+  /* Flat bag-type list rows (new Add Bags modal) */
+  .bt-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #f0f1f3;
+    background: #fff;
+    cursor: pointer;
+    transition: background .12s ease;
+    gap: 12px;
+  }
+  .bt-row:last-child { border-bottom: 0; }
+  .bt-row:hover { background: #f6f8fa; }
+  .bt-row:active { background: #eef1f5; }
+  .bt-row .bt-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .bt-row .bt-title {
+    font-size: 17px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .bt-row .bt-sub {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .bt-row .bt-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .bt-row .bt-right-top {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--brand);
+    font-size: 16px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .bt-row .bt-right-top .chev-r { color: var(--brand); opacity: .9; }
+  .bt-row.assigned .bt-right-top {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .bt-row.assigned .bt-right-top .chev-r {
+    color: #b8bcc2;
+    opacity: 1;
+  }
+  .bt-row .bt-guest-count {
+    color: var(--muted);
+  }
+  .bt-row .bt-count {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Waived Item row at the bottom of the bag-type list */
+  .bt-row.bt-waived .bt-right-top {
+    color: var(--muted);
+  }
+  .bt-row.bt-waived .bt-right-top .chev-r {
+    color: #b8bcc2;
+    opacity: 1;
+  }
+
+  /* Select Guests sub-screen (slides in over the modal body) */
+  .guest-screen {
+    position: absolute;
+    inset: 0;
+    background: #eef0f3;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform .25s ease;
+    z-index: 5;
+  }
+  .guest-screen.show { transform: translateX(0); }
+
+  .guest-screen-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 18px 24px;
+  }
+
+  /* Section head: bag-type name + sub on the left, "Add 1 to All" on the right */
+  .gs-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .gs-section-titles {
+    flex: 1;
+    min-width: 0;
+  }
+  .gs-heading {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .gs-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .gs-assign-all {
+    background: none;
+    border: 0;
+    color: var(--brand);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 0;
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+  .gs-assign-all:hover { color: var(--brand-hover); }
+
+  /* Back button: chevron + label */
+  .modal-header .gs-back-btn {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--brand);
+    font-size: 17px;
+    font-weight: 400;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: inherit;
+  }
+  .modal-header .gs-back-btn:hover { color: var(--brand-hover); }
+  .modal-header .gs-back-btn:active { opacity: 0.7; }
+
+  .gs-search {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .gs-search input {
+    width: 100%;
+    background: #e3e5ea;
+    border: 0;
+    border-radius: 10px;
+    padding: 12px 14px 12px 40px;
+    font-size: 15px;
+    color: var(--ink);
+    font-family: inherit;
+    outline: none;
+  }
+  .gs-search input::placeholder { color: #8a8f96; }
+  .gs-search svg {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: #8a8f96;
+  }
+
+  .gs-card {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .gs-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-top: 1px solid #f0f1f3;
+    gap: 12px;
+  }
+  .gs-row:first-child { border-top: 0; }
+  .gs-row .gs-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 17px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+
+  /* Tier chips beside the stepper */
+  .tier-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    flex-shrink: 0;
+  }
+  .tier-chip.tier-platinum { color: #8a6f3a; background: #f3e8d4; }
+  .tier-chip.tier-gold     { color: #a87a1c; background: #f5e6c4; }
+  .tier-chip.tier-silver   { color: #5e6878; background: #dfe4ec; }
+  .tier-chip.tier-titanium { color: #3a3f46; background: #e3e6ea; }
+  .gs-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .gs-stepper .count {
+    min-width: 14px;
+    text-align: center;
+    font-size: 16px;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .stepper-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1.5px solid var(--brand);
+    color: var(--brand);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background .12s ease, transform .08s ease;
+  }
+  .stepper-btn:hover { background: rgba(0,116,200,.08); }
+  .stepper-btn:active { transform: scale(.92); }
+  .stepper-btn.disabled,
+  .stepper-btn[disabled] {
+    border-color: #c8ccd2;
+    color: #c8ccd2;
+    cursor: not-allowed;
+    background: #fff;
+  }
+  .stepper-btn.disabled:hover { background: #fff; }
+  .stepper-btn svg { display: block; }
+
+  /* ---------- Waived Item sub-screen ---------- */
+  .wv-heading {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin-bottom: 14px;
+  }
+  .wv-entry {
+    background: #fff;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .wv-entry-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-top: 1px solid #f0f1f3;
+    gap: 12px;
+    min-height: 50px;
+  }
+  .wv-entry-row:first-child { border-top: 0; }
+  .wv-entry-row .wv-label {
+    font-size: 17px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    flex-shrink: 0;
+  }
+  .wv-entry-row .wv-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+  }
+  .wv-dropdown {
+    background: none;
+    border: 0;
+    padding: 4px 0;
+    color: var(--brand);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .wv-dropdown:hover { color: var(--brand-hover); }
+  .wv-dropdown:active { opacity: 0.7; }
+  .wv-dropdown .wv-dd-chev {
+    color: var(--brand);
+    flex-shrink: 0;
+  }
+
+  /* "+ Add New Item" button — full-width, white card style */
+  .wv-add-new {
+    width: 100%;
+    background: #fff;
+    border: 0;
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--brand);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    transition: background .12s ease;
+  }
+  .wv-add-new:hover { background: #f6f8fa; }
+  .wv-add-new:active { background: #eef1f5; }
+  .wv-add-new svg { color: var(--brand); }
+
+  /* ---------- Picker sheet (used for Select Guest and Select Item) ---------- */
+  .picker-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(20,22,26,.35);
+    z-index: 200;
+    display: none;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .picker-backdrop.show { display: block; }
+
+  .picker-sheet {
+    position: absolute;
+    z-index: 201;
+    background: #f3f4f6;
+    border-radius: 14px;
+    box-shadow:
+      0 24px 60px rgba(0,0,0,.35),
+      0 4px 12px rgba(0,0,0,.18);
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+    width: 380px;
+    max-height: 793px;
+  }
+  .picker-sheet.show { display: flex; }
+  .picker-sheet .picker-scroll {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .picker-row {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    padding: 14px 22px;
+    text-align: left;
+    cursor: pointer;
+    border-bottom: 1px solid #e3e5e9;
+    font-family: inherit;
+    color: var(--ink);
+    transition: background .1s ease;
+  }
+  .picker-row:last-child { border-bottom: 0; }
+  .picker-row:hover { background: #e8ebef; }
+  .picker-row:active { background: #dee1e6; }
+  .picker-row .picker-row-name {
+    font-size: 17px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    display: block;
+  }
+  .picker-row .picker-row-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 2px;
+    display: block;
+  }
+  .picker-row.selected {
+    background: rgba(0,116,200,.08);
+  }
+  .picker-row.selected .picker-row-name { color: var(--brand); font-weight: 600; }
+
+  /* ADD popover menu */
+  .menu-backdrop {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    z-index: 90;
+    display: none;
+  }
+  .menu-backdrop.show { display: block; }
+
+  .add-menu {
+    position: absolute;
+    width: 240px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow:
+      0 1px 2px rgba(0,0,0,.06),
+      0 12px 28px rgba(16,24,40,.18),
+      0 0 0 1px rgba(0,0,0,.04);
+    z-index: 95;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-4px) scale(.98);
+    transform-origin: top right;
+    transition: opacity .12s ease, transform .12s ease;
+    pointer-events: none;
+  }
+  .add-menu.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    font-size: 15px;
+    color: var(--ink);
+    cursor: pointer;
+    background: #fff;
+    border: 0;
+    width: 100%;
+    text-align: left;
+    transition: background .12s ease;
+    border-bottom: 1px solid #f0f1f3;
+  }
+  .menu-item:last-child { border-bottom: 0; }
+  .menu-item:hover { background: #f4f6f9; }
+  .menu-item:active { background: #e9edf2; }
+  .menu-item .left {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .menu-item .right {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+  }
+  .menu-item .chev {
+    color: #b8bcc2;
+  }
+  .menu-icon {
+    width: 18px; height: 18px;
+    color: #3a3f46;
+    flex-shrink: 0;
+  }
+  .ssr-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    background: #3a3f46;
+    color: #fff;
+    border-radius: 3px;
+    padding: 2px 4px;
+    line-height: 1;
+  }
+
+  /* Sticky footer CTA — anchored to the bottom of the fixed 744x1133 stage */
+  .footer-cta {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 14px 22px 18px 22px;
+    display: flex; justify-content: flex-end;
+    gap: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 40%);
+    pointer-events: none;
+    z-index: 50;
+  }
+  .footer-cta .cta { pointer-events: auto; }
+  .cta {
+    background: #cfd3d8; color: #fff;
+    border: 0; border-radius: 6px;
+    padding: 12px 28px;
+    font-size: 16px; font-weight: 600;
+    cursor: not-allowed;
+    transition: background .15s ease, transform .1s ease, opacity .2s ease;
+    min-width: 180px;
+  }
+  .cta.active { background: var(--brand); cursor: pointer; }
+  .cta.active:hover { background: var(--brand-hover); }
+  .cta.active:active { transform: scale(.98); }
+
+  /* Secondary CTA — white with brand border (e.g. Add Bags next to Select Guests) */
+  .cta.cta-secondary {
+    background: #fff;
+    color: var(--brand);
+    border: 1.5px solid var(--brand);
+    cursor: pointer;
+    padding: 10.5px 28px; /* compensate for border so heights match */
+  }
+  .cta.cta-secondary:hover { background: rgba(0,116,200,.08); }
+  .cta.cta-secondary:active { transform: scale(.98); }
+
+  /* Hidden state — using [hidden] attribute, animated out for a soft entrance */
+  .cta[hidden] { display: none; }
+
+  /* Toast — anchored to the stage bottom, not the viewport */
+  .toast {
+    position: absolute;
+    bottom: 40px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1a1a1a; color: #fff;
+    padding: 12px 20px; border-radius: 8px;
+    font-size: 14px;
+    opacity: 0;
+    transition: all .25s ease;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<!-- Hidden SVG sprite for airline logo -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="alaska-logo" viewBox="0 0 30 30">
+      <g clip-path="url(#clip0_logo)">
+        <circle cx="15" cy="15" r="15" fill="url(#paint_logo_grad)"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M15.3191 20.3006C15.3749 20.3742 15.426 20.4513 15.472 20.5315C15.577 20.6937 15.6728 20.8634 15.7888 21.0175C15.9361 21.212 16.1528 21.3421 16.3937 21.3806C16.4688 21.3901 16.5309 21.4438 16.5512 21.5168C16.6055 21.6808 16.6695 21.7137 16.8426 21.6761C17.1075 21.6184 17.3707 21.5492 17.6373 21.503C17.9469 21.4475 18.2645 21.4551 18.5711 21.5255C18.6402 21.5422 18.7064 21.5694 18.7673 21.6063C18.9162 21.6975 19.0657 21.791 19.2059 21.8949C19.3079 21.9774 19.4055 22.065 19.4985 22.1576C19.553 22.2188 19.6131 22.2749 19.678 22.325C19.7499 22.3677 19.8298 22.395 19.9128 22.4052C20.0086 22.4173 20.0415 22.3625 20.0231 22.2655C20.0181 22.2251 20.0159 22.1844 20.0167 22.1437C20.0638 22.1504 20.1098 22.1632 20.1535 22.1818C20.1925 22.2048 20.23 22.2301 20.2674 22.2558L20.3047 22.2815C20.3545 22.3157 20.4045 22.3492 20.4576 22.3769C20.5378 22.4166 20.624 22.4425 20.7127 22.4537C20.76 22.4556 20.8051 22.434 20.8333 22.396C20.848 22.3509 20.8401 22.3014 20.812 22.2632C20.7415 22.1865 20.6643 22.1164 20.5811 22.0537C20.5165 22.0034 20.4415 21.9671 20.3728 21.922C20.3482 21.9034 20.3251 21.8829 20.3035 21.8609L20.3122 21.8366C20.3913 21.843 20.4703 21.8476 20.5494 21.8557C20.7135 21.873 20.872 21.9249 21.0145 22.0081C21.0994 22.0577 21.1877 22.1016 21.2725 22.1524C21.3931 22.2251 21.4399 22.3221 21.385 22.4508C21.3049 22.6384 21.2132 22.8207 21.1103 22.9969C21.0243 23.1452 20.9153 23.2803 20.8218 23.4235C20.6446 23.693 20.5829 23.9967 20.5794 24.3107C20.5731 24.8672 20.5794 25.4236 20.5794 25.9801C20.5788 26.0955 20.5765 26.2098 20.5736 26.3247C20.5517 26.4061 20.5298 26.4875 20.5073 26.5695C20.4231 26.7208 20.2997 26.8467 20.15 26.9337C19.9311 27.0604 19.7454 27.2373 19.6081 27.4498C19.5546 27.5332 19.4577 27.5782 19.3594 27.5652C19.2278 27.5583 19.0974 27.5329 18.9658 27.5294C18.8426 27.5236 18.7191 27.5317 18.5976 27.5537C18.4049 27.5935 18.346 27.7003 18.3893 27.8908C18.4008 27.941 18.4158 27.9907 18.4303 28.0397C18.477 28.1967 18.4354 28.3041 18.2935 28.3861C18.1516 28.4599 17.9898 28.4863 17.8318 28.4617C17.6212 28.4391 17.416 28.3805 17.2253 28.2885C16.9413 28.1534 16.6585 28.0155 16.3752 27.8781C16.2681 27.8284 16.1993 27.7214 16.1986 27.6033C16.1948 27.4917 16.184 27.3805 16.1663 27.2702C16.1352 27.0838 15.9749 26.9466 15.786 26.9447C15.6485 26.9372 15.5108 26.9372 15.3733 26.9447C15.0782 26.9617 14.7869 26.9283 14.4957 26.8912L14.3899 26.8776C14.381 26.8765 14.3722 26.8754 14.3634 26.8743C14.1326 26.8454 13.9052 26.8211 13.6755 26.7963C13.5393 26.7819 13.5133 26.7478 13.5422 26.6168C13.5673 26.5139 13.64 26.4292 13.7378 26.3888C13.911 26.3022 14.0927 26.312 14.2774 26.3415C14.7373 26.4133 15.2033 26.4383 15.6682 26.4159C16.2923 26.3882 16.9158 26.3578 17.5386 26.3247C17.6198 26.3142 17.6995 26.2948 17.7764 26.267C17.8208 26.2543 17.8624 26.2312 17.9068 26.2185C17.9703 26.2 18.0124 26.2277 18.0159 26.2918C18.0177 26.3268 18.0208 26.3618 18.0242 26.3968L18.0263 26.4179L18.0273 26.4284L18.0294 26.4494C18.0427 26.5861 18.0525 26.723 17.9974 26.8581C17.9926 26.8829 18.0014 26.9084 18.0205 26.9251C18.0448 26.9342 18.0719 26.9314 18.0938 26.9175C18.1697 26.8613 18.2152 26.773 18.2167 26.6786L18.2201 26.5604C18.2241 26.4226 18.2284 26.2849 18.2369 26.1475C18.2485 25.9605 18.2917 25.7717 18.2768 25.5876C18.2504 25.3526 18.2068 25.1199 18.1463 24.8914C18.1137 24.7604 18.0097 24.6592 17.878 24.6299C17.7418 24.5895 17.6085 24.5376 17.474 24.4873C17.3169 24.4322 17.1873 24.3184 17.1122 24.1699C17.0181 23.9857 16.9344 23.7964 16.8403 23.6122C16.7955 23.5254 16.7427 23.4429 16.6828 23.3657C16.6513 23.3131 16.5841 23.2944 16.5299 23.323C16.4721 23.3577 16.4796 23.4148 16.4947 23.4685C16.5166 23.5499 16.5449 23.6295 16.5656 23.7109C16.5991 23.8454 16.5327 23.9303 16.3925 23.932C16.3514 23.9333 16.3104 23.9285 16.2707 23.9176C16.0491 23.8477 15.8194 23.7941 15.6088 23.6994C15.3114 23.556 14.9696 23.5353 14.6571 23.6417C14.4782 23.7009 14.2972 23.7548 14.1141 23.8033C13.9259 23.8524 13.7678 23.779 13.6322 23.6561C13.5668 23.5988 13.541 23.5084 13.5664 23.4252C13.5964 23.3178 13.6391 23.2145 13.6738 23.1089C13.7038 23.0171 13.6853 22.9934 13.5889 22.998C13.406 23.0055 13.3367 23.0685 13.29 23.2393C13.2617 23.3393 13.223 23.436 13.1746 23.5279C13.0464 23.7762 12.9397 24.0302 12.9114 24.3118C12.8956 24.4174 12.8274 24.5078 12.7302 24.552C12.5392 24.6582 12.3441 24.7586 12.1531 24.8672C11.9998 24.9606 11.9181 25.1372 11.9459 25.3145C11.9594 25.3786 11.9681 25.4437 11.9719 25.5091C11.9719 25.74 11.9703 25.9709 11.9673 26.2017C11.9638 26.3651 11.9534 26.5285 11.9471 26.6924C11.9469 26.7141 11.949 26.7358 11.9534 26.7571C11.9696 26.8454 12.0232 26.8725 12.1011 26.8269C12.1397 26.8013 12.1746 26.7706 12.205 26.7357C12.2373 26.7028 12.2627 26.663 12.2974 26.6318C12.3932 26.5418 12.4849 26.5504 12.5611 26.6578C12.6255 26.7575 12.6485 26.8785 12.6252 26.9949C12.5998 27.2117 12.5395 27.423 12.4468 27.6206C12.4122 27.6972 12.3855 27.7771 12.3672 27.859C12.3326 27.996 12.3855 28.1401 12.5005 28.2221C12.6502 28.3384 12.8214 28.424 13.0043 28.4738C13.3754 28.5892 13.7545 28.6787 14.1452 28.647C14.3363 28.6314 14.5244 28.5892 14.7143 28.5604C14.7442 28.5552 14.7746 28.5535 14.8049 28.5552C14.978 28.569 15.0761 28.7139 14.9976 28.8669C14.9443 28.9712 14.8698 29.0632 14.7789 29.1371C14.5858 29.2831 14.4417 29.4844 14.3657 29.7143C14.3571 29.7397 14.3449 29.7645 14.3345 29.7899C14.2532 29.9891 14.0829 30.0543 13.8977 29.9394C13.7132 29.8262 13.5366 29.7007 13.369 29.5636C13.0084 29.2646 12.6575 28.9541 12.3026 28.6481C12.216 28.5725 12.1294 28.4957 12.044 28.4172C11.5621 27.9895 11.3775 27.4503 11.4196 26.8183C11.4686 26.0805 11.5131 25.3422 11.4929 24.6022C11.4883 24.4342 11.4617 24.2662 11.4456 24.0983C11.4448 24.0901 11.4434 24.082 11.4415 24.074C11.3971 23.8968 11.2926 23.8622 11.1628 23.9921C11.0804 24.0838 11.0034 24.1802 10.9319 24.2807C10.8802 24.3512 10.8249 24.419 10.7663 24.4839C10.7086 24.5416 10.6509 24.5301 10.6209 24.4521C10.6015 24.4013 10.5902 24.3477 10.5874 24.2934C10.5702 23.9637 10.6211 23.6399 10.6711 23.3157L10.682 23.2445C10.7267 22.9283 10.8292 22.623 10.9844 22.344C11.0347 22.2561 11.0926 22.1729 11.1576 22.0952C11.2826 21.9246 11.5199 21.8831 11.6954 22.0011C11.7895 22.056 11.8761 22.1247 11.9661 22.1864C12.1236 22.295 12.216 22.2742 12.302 22.1044C12.3339 22.0354 12.3611 21.9642 12.3834 21.8915C12.3946 21.8392 12.4402 21.8015 12.4936 21.8002C12.5998 21.7887 12.7048 21.7668 12.811 21.7512C13.0051 21.7227 13.1737 21.6345 13.3405 21.5409L13.3649 21.5272C13.369 21.5249 13.3731 21.5226 13.3771 21.5203C13.5353 21.4297 13.6991 21.3512 13.8884 21.3633C13.9834 21.3726 14.0778 21.387 14.1712 21.4066C14.241 21.4187 14.3092 21.4447 14.3796 21.4499C14.5608 21.4631 14.6791 21.3921 14.7258 21.2155C14.7495 21.1288 14.7678 21.0405 14.7853 20.952L14.8003 20.8762C14.8152 20.8003 14.8306 20.7246 14.8493 20.6498C14.874 20.5385 14.9128 20.4309 14.9647 20.3294C15.0461 20.1805 15.2094 20.1695 15.3191 20.3006Z" fill="#FDFDFD"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M16.8024 16.2679C17.0564 16.2916 17.2595 16.3868 17.4032 16.6015C17.5469 16.8163 17.6854 17.0177 17.836 17.218C17.9057 17.3023 17.9849 17.3783 18.0721 17.4443C18.1052 17.466 18.1465 17.4714 18.184 17.4588C18.2019 17.4513 18.206 17.3912 18.2019 17.3566C18.1915 17.2706 18.1696 17.1834 18.1592 17.0991C18.1524 17.0509 18.1543 17.0018 18.165 16.9542C18.1886 16.8532 18.2741 16.8117 18.3577 16.87C18.4425 16.9297 18.5187 17.0006 18.5845 17.0807C18.7046 17.2255 18.8119 17.3814 18.9308 17.5292C19.1438 17.7972 19.4313 17.9961 19.7572 18.1006C19.8089 18.1082 19.8614 18.1082 19.913 18.1006C19.9111 18.0485 19.9006 17.997 19.8819 17.9483C19.776 17.7863 19.6979 17.6078 19.651 17.4201C19.6413 17.3749 19.6365 17.3289 19.6366 17.2827C19.6366 17.173 19.7076 17.1193 19.8097 17.1615C19.8853 17.1927 19.9552 17.2364 20.0164 17.2908C20.2876 17.5338 20.4515 17.8495 20.5935 18.1763C20.7664 18.5651 20.8711 18.9808 20.9028 19.4052C20.9098 19.506 20.9044 19.6072 20.8866 19.7065C20.8289 20.0056 20.6437 20.1251 20.3459 20.0367C20.1547 19.9783 19.9699 19.901 19.7942 19.8058C19.584 19.6943 19.3767 19.5763 19.1697 19.4578L19.0317 19.3787C18.9398 19.3261 18.8477 19.2735 18.7554 19.2217C18.2013 18.9105 17.6012 18.7974 16.9715 18.8268C16.5843 18.8447 16.1971 18.8684 15.8243 18.9833C15.6785 19.0299 15.536 19.0862 15.3978 19.1518C15.2678 19.2122 15.1597 19.3114 15.0884 19.4358C15.041 19.5124 14.9809 19.5803 14.9107 19.6367C14.823 19.7089 14.7676 19.6846 14.7468 19.5744C14.731 19.4997 14.7223 19.4238 14.7208 19.3475C14.7208 19.052 14.5148 18.9065 14.2915 18.8886C14.0295 18.8672 13.7646 18.873 13.5014 18.8771C13.3675 18.8771 13.2342 18.903 13.0974 18.9175C12.969 18.9241 12.8403 18.9241 12.7119 18.9175C12.5596 18.9019 12.4943 18.802 12.5521 18.6629C12.6022 18.5395 12.6705 18.4243 12.7546 18.3212C13.0711 17.9524 13.4347 17.6269 13.8361 17.3531C14.0052 17.2339 14.181 17.1237 14.3573 17.0141L14.4454 16.9594C14.5188 16.9137 14.5921 16.868 14.6648 16.8215H14.6695L14.6689 16.8249C14.9806 16.6589 15.3061 16.5204 15.6419 16.4111C16.0158 16.2886 16.41 16.24 16.8024 16.2679Z" fill="#FDFEFE"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M17.2694 24.7361C17.327 24.737 17.3828 24.7562 17.4287 24.791C17.5637 24.8979 17.6925 25.0126 17.8142 25.1344C17.9614 25.2874 17.9648 25.4877 17.9423 25.6805C17.9354 25.7382 17.8546 25.796 17.7928 25.8271C17.4298 25.9986 17.1194 26.0915 16.6964 26.0678C16.1625 26.0217 15.6287 25.9784 15.0955 25.9281C14.9073 25.9102 14.7203 25.8774 14.5328 25.8491C14.4381 25.8346 14.4174 25.7873 14.4849 25.718C14.5357 25.6653 14.594 25.6203 14.658 25.5847C14.8424 25.488 15.0116 25.3647 15.1601 25.2187C15.284 25.0957 15.4418 25.0332 15.6015 24.9738L15.6365 24.9608L15.6599 24.9521L15.6832 24.9434C15.6949 24.939 15.7065 24.9346 15.7182 24.9301C16.019 24.8246 16.3339 24.7648 16.6525 24.7529C16.8574 24.7396 17.064 24.7356 17.2694 24.7361Z" fill="#FCFDFD"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M18.1673 10.1775L18.9401 10.245C18.9458 10.2503 18.9517 10.2553 18.958 10.26L19.3694 10.3645L19.3845 10.3611C19.7203 10.5002 20.0602 10.6312 20.3921 10.7796C21.6632 11.3392 22.8892 11.9963 24.059 12.7451L24.7279 13.2242L24.4295 14.3787L23.808 13.7518H23.7935C23.3929 13.3982 22.9287 13.124 22.4258 12.9437C22.3467 12.9142 22.27 12.8796 22.1921 12.8472C21.9201 12.4209 21.5301 12.0828 21.0696 11.874C20.352 11.5607 19.613 11.2991 18.8581 11.0913L18.8252 11.0982L18.3601 10.9516L17.6797 10.783C17.8428 10.5814 18.0054 10.3795 18.1673 10.1775Z" fill="#C0E585"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M17.6809 10.7852L18.3613 10.9531L18.8265 11.1003L18.8594 11.0928C19.614 11.3009 20.3528 11.5625 21.0703 11.8756C21.5304 12.0841 21.9202 12.4218 22.1922 12.8477C22.2701 12.88 22.3468 12.9146 22.4259 12.9441C22.9265 13.1239 23.3888 13.3965 23.7884 13.7476L23.8011 13.7516H23.808L24.4296 14.3797L24.2611 15.0308C24.083 14.8287 23.8835 14.6466 23.6661 14.4876C23.6537 14.4772 23.6421 14.4658 23.6314 14.4536H23.6136L23.0047 13.9837C22.7069 13.751 22.4559 13.4826 22.3243 13.1213C22.2764 13.0015 22.1912 12.9003 22.0813 12.8326L22.0467 12.8177C21.7928 12.7524 21.5377 12.6907 21.2849 12.6202C21.1692 12.5876 21.0561 12.5461 20.9468 12.4961C20.8331 12.4419 20.8233 12.3599 20.9087 12.2687C21.0172 12.155 20.9906 12.0563 20.8331 12.028C20.6397 11.9933 20.4424 11.9778 20.2473 11.9501C20.1474 11.9359 20.0471 11.9246 19.9469 11.9137L19.88 11.9064C19.6795 11.8845 19.4789 11.8615 19.2801 11.8167C19.0931 11.7751 18.8882 11.8069 18.692 11.8132C18.5662 11.8178 18.4415 11.8369 18.3163 11.849L18.284 11.8554C18.2263 11.8519 18.1686 11.8554 18.1109 11.8519C17.9695 11.8432 17.8996 11.7826 17.854 11.6377V11.6106L17.8662 11.5575C17.9175 11.4594 17.9718 11.3624 18.0197 11.2625C18.0358 11.2339 18.039 11.1996 18.0283 11.1685C18.0035 11.1448 17.9695 11.1333 17.9354 11.1373C17.865 11.1455 17.7952 11.1584 17.7265 11.176C17.6521 11.1924 17.5792 11.2096 17.5067 11.2269L17.3981 11.2529C17.3619 11.2616 17.3256 11.2702 17.2891 11.2787L17.6809 10.7852Z" fill="#00C7E6"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M21.002 14.6019C21.092 14.5864 21.1618 14.5581 21.227 14.5656L21.278 14.5715C21.601 14.6091 21.9244 14.6512 22.2358 14.7532C22.4476 14.8225 22.6156 14.9616 22.776 15.1059C22.963 15.2733 23.1373 15.4569 23.3173 15.63L23.3312 15.6346C23.4345 15.7725 23.4822 15.9326 23.5275 16.094L23.5382 16.1322L23.5418 16.1449C23.5932 16.3279 23.719 16.4526 23.8661 16.5605L23.6353 17.4484L23.0518 16.7118L23.0363 16.6783C22.8839 16.4422 22.7419 16.198 22.5746 15.9729C22.2703 15.5725 21.8917 15.2344 21.4596 14.9772C21.3384 14.9015 21.223 14.8103 21.1076 14.7226C21.069 14.6854 21.0337 14.6451 21.002 14.6019Z" fill="#8BA6C1"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M25.2991 7.46899C25.691 7.46899 26.0087 7.78677 26.0087 8.17878C26.0087 8.22069 26.0051 8.26177 25.9981 8.3017L25.9961 8.31256L25.994 8.32322V8.32336H25.9953L24.7277 13.2236L24.0594 12.7508V12.745C22.8892 11.9962 21.6629 11.3391 20.3913 10.7795C20.2041 10.6958 20.0144 10.6177 19.8242 10.5404L19.6643 10.4756C19.594 10.4472 19.5238 10.4187 19.4537 10.3899L19.3837 10.361L19.3687 10.3645L18.9566 10.26C18.952 10.2565 18.9474 10.2528 18.9431 10.2489L18.9387 10.245L18.3536 10.1936L18.166 10.1774L18.3536 9.9425L19.4501 8.56634L19.5829 8.39942C19.6715 8.2881 19.7604 8.17689 19.85 8.06644C20.1145 7.74071 20.5634 7.47436 21.0204 7.46907L21.0342 7.46899H25.2991Z" fill="#01426A"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M4.93823 26.7144L5.05364 26.9776V26.9938L5.09057 27.0665C5.13789 27.1652 5.18695 27.2622 5.23889 27.3586C5.29083 27.455 5.34277 27.5496 5.40048 27.6437C5.50475 27.8181 5.6169 27.9874 5.73693 28.1517C5.74616 28.1644 5.75483 28.1771 5.76406 28.1892C5.76435 28.1944 5.76435 28.1996 5.76406 28.2048C5.87356 28.3446 5.9835 28.4841 6.09353 28.6235L6.22557 28.7908C6.53367 29.1813 6.84131 29.5721 7.14103 29.9689C7.20019 30.0492 7.25853 30.1291 7.31608 30.2093L7.35052 30.2575L7.39554 30.3187C7.48671 30.4477 7.57646 30.5779 7.66591 30.7083L7.77318 30.8648C7.80895 30.9169 7.84474 30.9691 7.88062 31.0211L7.93456 31.0992H1.45703L2.3222 30.0049C2.33511 29.9823 2.34931 29.9617 2.36461 29.9435L2.37132 29.9358C2.38044 29.9256 2.38812 29.9155 2.39438 29.9055L3.09009 29.0337L3.74177 28.2094L3.74133 28.2175L3.80767 28.1344L4.10027 27.7649C4.20395 27.636 4.30606 27.507 4.40753 27.3782L4.5088 27.2493L4.62427 27.1023C4.69599 27.0116 4.76889 26.9217 4.84194 26.8322L4.92956 26.7247L4.93823 26.7144Z" fill="#01426A"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M5.49786 26.0165L5.72062 26.3738L6.48586 27.4128C6.48959 27.4199 6.49231 27.4275 6.49394 27.4354L6.57359 27.5225L6.58686 27.5572C6.70978 28.0726 6.95274 28.5385 7.24129 28.9789C7.38653 29.2103 7.5677 29.417 7.778 29.5914C7.93249 29.7098 8.10907 29.7962 8.29741 29.8454C8.41975 29.8711 8.52495 29.9486 8.58596 30.0578C8.74119 30.3724 9.00724 30.5779 9.27848 30.7793C9.29522 30.7921 9.31137 30.8059 9.32696 30.8198L9.3714 30.8602L9.39275 30.8786L9.41121 30.8954L9.42334 30.9277C9.42711 30.9396 9.43193 30.9512 9.43775 30.9623C9.46892 31.0102 9.50124 31.057 9.53299 31.1043H7.93267C7.7526 30.8434 7.57602 30.5819 7.39365 30.3239L7.3498 30.2616C7.28112 30.1628 7.21129 30.067 7.14031 29.9729C6.69074 29.3778 6.22501 28.7959 5.76333 28.2089C5.76362 28.2037 5.76362 28.1985 5.76333 28.1933C5.7541 28.1812 5.74544 28.1685 5.73621 28.1558C5.61617 27.9907 5.50402 27.8213 5.39976 27.6478C5.34377 27.5537 5.29011 27.459 5.23816 27.3626C5.1866 27.2664 5.13716 27.169 5.08984 27.0705L5.05291 26.9978V26.9816L4.9375 26.7184L5.49786 26.0165Z" fill="#C0E585"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M18.0268 11.1651C18.0376 11.1964 18.0344 11.2309 18.0181 11.2597C17.9894 11.3197 17.9583 11.3786 17.927 11.4373L17.8957 11.4959L17.8801 11.5253L17.8646 11.5547L17.8525 11.6078V11.6332L17.8543 11.6388C17.8568 11.6464 17.8593 11.6537 17.862 11.6609L17.866 11.6714C17.9118 11.7867 17.9806 11.8375 18.1038 11.8464L18.1093 11.8468C18.1542 11.85 18.199 11.8507 18.2439 11.8508L18.2824 11.8509L18.3147 11.8445C18.346 11.8413 18.3773 11.8378 18.4086 11.8341L18.4555 11.8287C18.5336 11.8196 18.6118 11.8112 18.6904 11.8087C18.7272 11.8074 18.7642 11.8053 18.8014 11.8029L18.8801 11.7977L18.9055 11.7961C19.0283 11.7887 19.1507 11.7855 19.2665 11.8096L19.2785 11.8122C19.4481 11.8501 19.6189 11.8723 19.79 11.8916L19.847 11.898L19.961 11.9105C20.056 11.921 20.151 11.9319 20.2457 11.9455C20.3031 11.9535 20.3607 11.9605 20.4183 11.9674L20.522 11.9795C20.6258 11.9918 20.7294 12.0048 20.8321 12.0229C20.9796 12.0495 21.0119 12.1373 20.9256 12.2436L20.92 12.2504L20.9109 12.2607L20.9077 12.2642C20.8227 12.3538 20.8301 12.4371 20.9418 12.4892L20.9457 12.491C21.0548 12.5415 21.1677 12.5832 21.2834 12.6157C21.4308 12.6568 21.579 12.6949 21.7275 12.7326L21.8548 12.7649C21.8972 12.7757 21.9396 12.7865 21.9821 12.7973L22.0457 12.8137L22.0803 12.8281L22.0871 12.8323C22.1944 12.8997 22.2779 12.9992 22.3256 13.1167C22.4376 13.4243 22.6361 13.6658 22.8763 13.8732L22.8944 13.8887L22.9126 13.9041L22.931 13.9193L22.9403 13.9269L22.9636 13.9457L22.9871 13.9644L22.9965 13.9718L23.006 13.9792L23.6149 14.4514L23.6201 14.4515L23.6304 14.4514C23.6413 14.4634 23.6528 14.4748 23.6651 14.4854C23.8775 14.6406 24.0729 14.818 24.2478 15.0145L24.2624 15.0309L23.8694 16.5606L23.8557 16.5504L23.8489 16.5453L23.8354 16.5349C23.7034 16.4322 23.5919 16.3094 23.5456 16.145L23.5225 16.0627L23.5167 16.0422L23.5077 16.0114L23.5047 16.0012L23.4985 15.9808L23.4922 15.9605C23.4569 15.849 23.4131 15.7409 23.3415 15.6435L23.335 15.6347L23.3211 15.6301L23.2912 15.6005L23.2315 15.5412L23.172 15.4819C23.0433 15.3538 22.9148 15.2269 22.7798 15.106L22.7544 15.0832L22.7374 15.0681L22.7203 15.0531L22.7031 15.0382L22.6858 15.0234L22.6771 15.0161L22.6597 15.0015L22.6509 14.9943L22.6333 14.9799C22.5153 14.8849 22.3882 14.8019 22.2396 14.7533C21.9905 14.6717 21.7337 14.6284 21.4756 14.5951L21.4348 14.5899L21.394 14.5849L21.3328 14.5775L21.2308 14.5656C21.1992 14.562 21.1665 14.5668 21.131 14.5744L21.1175 14.5774L21.0967 14.5823L21.0679 14.5891L21.053 14.5926C21.0378 14.5959 21.0221 14.5992 21.0058 14.602C21.0375 14.6451 21.0728 14.6855 21.1114 14.7227L21.1287 14.7358L21.2151 14.802C21.2958 14.8637 21.3774 14.9243 21.4634 14.9772C21.8955 15.2345 22.2741 15.5726 22.5784 15.973C22.6746 16.1029 22.7626 16.2391 22.8491 16.3764L22.8837 16.4314L22.9355 16.514C22.9643 16.5598 22.9932 16.6056 23.0225 16.6511L23.0401 16.6784L23.0557 16.7119L23.6408 17.4496L20.7472 28.6411L20.7485 28.6407L20.7176 28.7556L20.5975 29.2202C20.5918 29.2369 20.5857 29.2544 20.5789 29.2729L20.2909 30.3464C20.1876 30.5852 19.8015 31.0956 19.0278 31.1015H9.68239L9.66507 31.0853C9.62439 31.053 9.58298 31.0215 9.54143 30.9903L9.47906 30.9435L9.44793 30.9201L9.41691 30.8966L9.41249 30.8923L9.40319 30.8843L9.39844 30.8804L9.3771 30.8619L9.33266 30.8215L9.28419 30.7811L9.23765 30.7466L9.20984 30.7258L9.18215 30.705L9.16379 30.691L9.14547 30.677L9.12725 30.6629L9.10911 30.6488L9.08657 30.6309L9.06418 30.613L9.05528 30.6058L9.03757 30.5912L9.02876 30.5839L9.01121 30.5692L8.99382 30.5544C8.97939 30.542 8.96508 30.5295 8.95096 30.5168L8.9341 30.5015L8.92572 30.4938L8.90912 30.4782C8.78244 30.3585 8.6716 30.224 8.59165 30.0595C8.53066 29.9504 8.42545 29.8729 8.30311 29.8471C8.11478 29.7979 7.93819 29.7116 7.78371 29.5931C7.57177 29.4192 7.38901 29.2124 7.24239 28.9807L7.23245 28.9654L7.21269 28.9348L7.18338 28.8888L7.16401 28.858L7.14485 28.8272L7.12583 28.7963C6.88938 28.4094 6.69507 28.0045 6.5891 27.5566L6.58609 27.5488L6.58029 27.5331L6.57583 27.5214L6.57411 27.5034L6.56972 27.4557L6.56691 27.4237L6.56414 27.3911L6.5614 27.3575L6.55881 27.3486L6.55643 27.341L6.55161 27.3259L6.5435 27.2957L6.53759 27.2615L6.51713 27.1417L6.50826 27.0904L6.50224 27.0562L6.49611 27.0221C6.45791 26.8115 6.41165 26.6027 6.32825 26.4033C6.29188 26.3157 6.25259 26.2291 6.21274 26.1428L6.1614 26.0317L6.14436 25.9947L6.12741 25.9576L5.90234 25.5368C6.15589 25.2139 6.41116 24.8924 6.66816 24.5722C6.7539 24.465 6.8404 24.3584 6.92711 24.2519L7.12233 24.0123L7.43052 23.6209C7.74178 23.2288 8.05341 22.8374 8.36542 22.4468C9.13017 21.4873 9.89507 20.529 10.6601 19.572L11.0426 19.0936L13.6488 15.831L16.6348 12.0841C16.8525 11.8147 17.0701 11.5453 17.2875 11.2759C17.4335 11.2413 17.5789 11.2061 17.7249 11.1726C17.7937 11.1553 17.8634 11.1426 17.9338 11.1345C17.9678 11.1304 18.0018 11.1416 18.0268 11.1651Z" fill="#01426A"/>
+      </g>
+      <defs>
+        <linearGradient id="paint_logo_grad" x1="15" y1="0" x2="15" y2="30" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#649ACF"/>
+          <stop offset="1" stop-color="#B9D7EF"/>
+        </linearGradient>
+        <clipPath id="clip0_logo">
+          <rect width="30" height="30" rx="15" fill="white"/>
+        </clipPath>
+      </defs>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="screen">
+  <!-- Status bar -->
+      <div class="statusbar">
+    <span>1:54 PM Fri Mar 14</span>
+    <span class="battery">
+      100%
+      <span class="battery-icon"><span class="battery-fill"></span></span>
+    </span>
+  </div>
+
+  <!-- Top nav -->
+  <div class="topnav">
+    <button class="back" onclick="toast('Returning to Find Reservation')">
+      <svg width="10" height="16" viewBox="0 0 10 16" fill="none">
+        <path d="M8.5 1.5L1.5 8L8.5 14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Find Reservation
+    </button>
+    <div class="pnr">EADIKU</div>
+    <div class="top-actions">
+      <button class="icon-btn" aria-label="Notifications" onclick="toast('No new notifications')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="badge"></span>
+      </button>
+      <button class="icon-btn" aria-label="Print" onclick="toast('Print queue opened')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"/>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+      </button>
+      <button class="icon-btn" aria-label="More" onclick="toast('More options')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="8" cy="12" r="1" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1" fill="currentColor"/>
+          <circle cx="16" cy="12" r="1" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Flight status strip -->
+  <div class="status-strip">
+    <span class="dtag">D-01:55</span>
+    <span class="label">Check-In Open</span>
+    <span class="route">SEA <span class="arrow">→</span> LAX</span>
+    <span class="aircraft">N282AK&nbsp;&nbsp;737-900R</span>
+  </div>
+
+  <!-- Itinerary -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">Itinerary</div>
+      <button class="link" onclick="toast('Opening reservation management')">Manage Reservation</button>
+    </div>
+    <div class="itin">
+      <div class="itin-grid">
+        <div>
+          <div class="day-label"><strong>Today</strong> Mar 05</div>
+          <div class="flight-card" onclick="toast('AS 1300 details')">
+            <div class="flight-head">
+              <div class="flight-meta">
+                <svg class="flight-logo"><use href="#alaska-logo"/></svg>
+                <div>
+                  <div class="flight-no">AS 1300</div>
+                  <div class="carrier">Alaska Airlines</div>
+                </div>
+              </div>
+              <span class="ontime">On Time</span>
+            </div>
+            <div class="leg">
+              <div>
+                <div class="station"><span class="code">SEA</span><span class="gate">C20</span></div>
+                <div class="time">3:50 pm</div>
+              </div>
+              <div class="right-align">
+                <div class="station"><span class="code">LAX</span><span class="gate">63A</span></div>
+                <div class="time">6:36 pm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="day-label"><strong>Today</strong> Mar 07</div>
+          <div class="flight-card" onclick="toast('AS 84 details')">
+            <div class="flight-head">
+              <div class="flight-meta">
+                <svg class="flight-logo"><use href="#alaska-logo"/></svg>
+                <div>
+                  <div class="flight-no">AS 84</div>
+                  <div class="carrier">Alaska Airlines</div>
+                </div>
+              </div>
+              <span class="ontime">On Time</span>
+            </div>
+            <div class="leg">
+              <div>
+                <div class="station"><span class="code">LAX</span><span class="gate">B12</span></div>
+                <div class="time">6:00 pm</div>
+              </div>
+              <div class="right-align">
+                <div class="station"><span class="code">SEA</span><span class="gate">N04</span></div>
+                <div class="time">8:58 pm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guest search (iOS-style) -->
+  <div class="guest-search-wrap">
+    <div class="guest-search" id="guestSearchField">
+      <svg class="guest-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input type="search" id="guestSearchInput" placeholder="Search by First or Last Name" autocomplete="off" inputmode="search" enterkeyhint="search" aria-label="Search guests">
+      <button type="button" class="guest-search-clear" id="guestSearchClear" aria-label="Clear search" hidden>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="12" r="11" fill="#b8bcc2"/>
+          <path d="M8 8l8 8M16 8l-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </button>
+    </div>
+    <button type="button" class="guest-search-cancel" id="guestSearchCancel" hidden>Cancel</button>
+  </div>
+
+  <!-- Guests header: count + Select All on left, VCR / Remarks / Booking Info on right -->
+  <div class="guests-head">
+    <div class="head-left">
+      <div class="guests-count" id="guestsCount">20 Guests</div>
+      <button class="link" id="selectAll">Select All</button>
+    </div>
+    <div class="head-links">
+      <button class="link" onclick="toast('Opening VCR')">VCR</button>
+      <button class="link" onclick="toast('Opening Remarks')">Remarks</button>
+      <button class="link" onclick="toast('Opening Booking Info')">Booking Info</button>
+    </div>
+  </div>
+
+  <!-- Guests (rendered by JS) -->
+  <div class="guests" id="guestsContainer"></div>
+
+  <!-- Sticky footer CTA -->
+  <div class="footer-cta">
+    <button class="cta cta-secondary" id="addBagsCta" hidden>Add Bags</button>
+    <button class="cta" id="selectGuestsBtn" disabled>Continue</button>
+  </div>
+
+<!-- Add menu backdrop + popover -->
+<div class="menu-backdrop" id="menuBackdrop"></div>
+<div class="add-menu" id="addMenu" role="menu" aria-label="Add options">
+  <button class="menu-item" data-action="Profile" data-submenu="true">
+    <span class="left">Profile</span>
+    <span class="right">
+      <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      <svg class="chev" width="7" height="12" viewBox="0 0 7 12" fill="none">
+        <path d="M1 1l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+  </button>
+  <button class="menu-item" data-action="Document" data-submenu="true">
+    <span class="left">Document</span>
+    <span class="right">
+      <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="8" y1="13" x2="16" y2="13"/>
+        <line x1="8" y1="17" x2="13" y2="17"/>
+      </svg>
+      <svg class="chev" width="7" height="12" viewBox="0 0 7 12" fill="none">
+        <path d="M1 1l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+  </button>
+  <button class="menu-item" data-action="Bag">
+    <span class="left">Bag</span>
+    <span class="right">
+      <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="7" width="14" height="14" rx="2"/>
+        <path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>
+        <line x1="12" y1="11" x2="12" y2="17"/>
+      </svg>
+    </span>
+  </button>
+  <button class="menu-item" data-action="Special Service">
+    <span class="left">Special Service</span>
+    <span class="right">
+      <span class="ssr-badge">SSR</span>
+    </span>
+  </button>
+  <button class="menu-item" data-action="Seat">
+    <span class="left">Seat</span>
+    <span class="right">
+      <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 4v10h8"/>
+        <path d="M6 14h12l2 6H4z"/>
+      </svg>
+    </span>
+  </button>
+  <button class="menu-item" data-action="Lap Infant">
+    <span class="left">Lap Infant</span>
+    <span class="right">
+      <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="2.5"/>
+        <path d="M8 22v-6l-2-4 3-3h6l3 3-2 4v6"/>
+      </svg>
+    </span>
+  </button>
+</div>
+
+<!-- Add Bags modal -->
+<div class="modal-overlay" id="bagsModal" role="dialog" aria-modal="true" aria-labelledby="bagsModalTitle">
+  <div class="modal" role="document" style="position: relative;">
+    <div class="modal-header">
+      <div class="h-left"><button id="bagsCancel">Cancel</button></div>
+      <div class="modal-title" id="bagsModalTitle">Add Bags</div>
+      <div class="h-right"></div>
+    </div>
+    <div class="modal-body" id="bagsModalBody">
+      <div class="modal-section">
+        <div class="modal-section-title">Add Bags</div>
+        <div class="modal-section-sub">Select guests to apply individual bag type</div>
+        <div class="modal-card" id="bagTypeList">
+          <!-- Bag type rows rendered here by JS -->
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div class="modal-summary-row" id="bagsModalSummary">
+        <span class="summary-empty" id="summaryEmpty">Select guests to continue</span>
+        <span class="summary-left" id="summaryLeft" hidden></span>
+        <span class="summary-right" id="summaryRight" hidden></span>
+      </div>
+      <button class="modal-cta" id="bagsModalCta" disabled>Add Bags</button>
+    </div>
+
+    <!-- Select Guests sub-screen -->
+    <div class="guest-screen" id="guestScreen" aria-hidden="true">
+      <div class="modal-header">
+        <div class="h-left">
+          <button id="gsBack" class="gs-back-btn" aria-label="Back to Add Bags">
+            <svg width="9" height="14" viewBox="0 0 9 14" fill="none" aria-hidden="true">
+              <path d="M7.5 12.5l-5.5-5.5 5.5-5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Add Bags</span>
+          </button>
+        </div>
+        <div class="modal-title">Select Guests</div>
+        <div class="h-right"></div>
+      </div>
+      <div class="guest-screen-body">
+        <div class="gs-section-head">
+          <div class="gs-section-titles">
+            <div class="gs-heading" id="gsTypeName">Standard</div>
+            <div class="gs-sub" id="gsSub">Tap to assign standard bags</div>
+          </div>
+          <button class="gs-assign-all" id="gsAssignAll">Add 1 to All</button>
+        </div>
+        <div class="gs-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <input type="text" id="gsSearch" placeholder="Enter guest's last name or first name" autocomplete="off">
+        </div>
+        <div class="gs-card">
+          <div id="gsRows"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Waived Item sub-screen -->
+    <div class="guest-screen waived-screen" id="waivedScreen" aria-hidden="true">
+      <div class="modal-header">
+        <div class="h-left">
+          <button id="wvBack" class="gs-back-btn" aria-label="Back to Add Bags">
+            <svg width="9" height="14" viewBox="0 0 9 14" fill="none" aria-hidden="true">
+              <path d="M7.5 12.5l-5.5-5.5 5.5-5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Add Bags</span>
+          </button>
+        </div>
+        <div class="modal-title">Waived Item</div>
+        <div class="h-right"></div>
+      </div>
+      <div class="guest-screen-body">
+        <div class="wv-heading">Waived Item</div>
+        <div id="wvEntries"></div>
+        <button class="wv-add-new" id="wvAddNew" type="button">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>Add New Item</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Item picker overlay (used by Waived Item sub-screen) -->
+<div class="picker-backdrop" id="pickerBackdrop"></div>
+<div class="picker-sheet" id="pickerSheet" role="listbox" aria-label="Picker"></div>
+
+<div class="toast" id="toast"></div>
+<div class="success-toast" id="successToast" role="status" aria-live="polite">
+  <span class="icon">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  </span>
+  <div class="text">
+    <span class="title" id="successToastTitle">Bags Successfully Added</span>
+    <span class="sub" id="successToastSub"></span>
+  </div>
+</div>
+
+</div><!-- /.screen -->
+
+<script>
+  // ---------- Data: 20 guests ----------
+  const guests = [
+    { name: "Acevedo, Melody",     tier: null,        checkedIn: true,  dhs: true,  kt: true,  ff: false, docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "19A", showBP: true  },
+    { name: "Alvarez, Giselle",    tier: "Silver",    checkedIn: true,  dhs: true,  kt: true,  ff: false, docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "20E", showBP: true  },
+    { name: "Bennett, Marcus",     tier: null,        checkedIn: false, dhs: true,  kt: false, ff: true,  docs: 2, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 1, seat: "12C", showBP: false },
+    { name: "Chen, Wei",           tier: "Gold",      checkedIn: true,  dhs: true,  kt: true,  ff: true,  docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "08F", showBP: true  },
+    { name: "Delgado, Rosa",       tier: null,        checkedIn: false, dhs: false, kt: false, ff: false, docs: 1, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "—",   showBP: false },
+    { name: "Edwards, Theodore",   tier: null,        checkedIn: true,  dhs: true,  kt: true,  ff: false, docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "14B", showBP: true  },
+    { name: "Foster, Imani",       tier: "Platinum",  checkedIn: true,  dhs: true,  kt: false, ff: true,  docs: 2, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 2, seat: "15D", showBP: true  },
+    { name: "Garcia, Javier",      tier: null,        checkedIn: false, dhs: true,  kt: true,  ff: false, docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "21A", showBP: false },
+    { name: "Hassan, Nadia",       tier: "Titanium",  checkedIn: true,  dhs: true,  kt: true,  ff: true,  docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "07C", showBP: true  },
+    { name: "Ingram, Oliver",      tier: null,        checkedIn: false, dhs: false, kt: false, ff: false, docs: 2, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "22F", showBP: false },
+    { name: "Jensen, Astrid",      tier: null,        checkedIn: true,  dhs: true,  kt: true,  ff: false, docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 1, seat: "11E", showBP: true  },
+    { name: "Kapoor, Rohan",       tier: "Platinum",  checkedIn: true,  dhs: true,  kt: true,  ff: true,  docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "06A", showBP: true  },
+    { name: "Liu, Mei",            tier: "Silver",    checkedIn: false, dhs: true,  kt: false, ff: false, docs: 2, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "23B", showBP: false },
+    { name: "Morrison, Declan",    tier: null,        checkedIn: true,  dhs: true,  kt: false, ff: true,  docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "09D", showBP: true  },
+    { name: "Nguyen, Phuong",      tier: "Gold",      checkedIn: true,  dhs: true,  kt: true,  ff: false, docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "17F", showBP: true  },
+    { name: "Okafor, Chinedu",     tier: null,        checkedIn: false, dhs: false, kt: false, ff: false, docs: 1, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "—",   showBP: false },
+    { name: "Patel, Anaya",        tier: "Titanium",  checkedIn: true,  dhs: true,  kt: true,  ff: true,  docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 1, seat: "10A", showBP: true  },
+    { name: "Reyes, Sebastián",    tier: null,        checkedIn: true,  dhs: true,  kt: false, ff: false, docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "18C", showBP: true  },
+    { name: "Sullivan, Briar",     tier: null,        checkedIn: false, dhs: true,  kt: true,  ff: false, docs: 2, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "24E", showBP: false },
+    { name: "Thompson, Harper",    tier: "Platinum",  checkedIn: true,  dhs: true,  kt: true,  ff: true,  docs: 3, bags: 0, paidBagsByType: {}, pendingBagsByType: {}, ssrs: 0, seat: "05B", showBP: true  }
+  ];
+
+  // ---------- Render ----------
+  const container = document.getElementById('guestsContainer');
+
+  function profileRows(g) {
+    return `
+      <div class="row"><span class="${g.dhs ? 'check-mark' : 'dash-mark'}">${g.dhs ? '✓' : '--'}</span> DHS Status</div>
+      <div class="row"><span class="${g.kt ? 'check-mark' : 'dash-mark'}">${g.kt ? '✓' : '--'}</span> Known Traveler</div>
+      <div class="row"><span class="${g.ff ? 'check-mark' : 'dash-mark'}">${g.ff ? '✓' : '--'}</span> Frequent Flyer</div>
+    `;
+  }
+
+  function pill(g) {
+    if (g.checkedIn) {
+      return `
+        <span class="check-pill">
+          <span class="dot">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </span>
+          Checked In
+        </span>
+        <span class="leg-mini">SEA → LAX</span>`;
+    }
+    return `
+      <span class="not-checked-pill">Not Checked In</span>
+      <span class="leg-mini">SEA → LAX</span>`;
+  }
+
+  function bagsField(g) {
+    if (g.bags > 0) {
+      const inactive = g.inactiveTags || 0;
+      const all = g.bags;
+      return `
+        <div class="field-value">${g.bags}</div>
+        <div class="field-breakdown">
+          <div class="br-row"><span>Inactive Tags</span><span class="br-num">${inactive}</span></div>
+          <div class="br-row"><span>All Tags</span><span class="br-num">${all}</span></div>
+        </div>
+      `;
+    }
+    return `<button class="field-add" onclick="event.stopPropagation(); openBagsModal('${g.name.replace(/'/g, "\\'")}')"><span class="plus">+</span> Add</button>`;
+  }
+
+  function seatsField(g) {
+    return `
+      <div class="field-value">${g.seat}</div>
+      ${g.showBP ? `
+        <button class="bp-btn" onclick="event.stopPropagation(); toast('Boarding Pass — ${g.seat}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+            <polyline points="16 6 12 2 8 6"/>
+            <line x1="12" y1="2" x2="12" y2="15"/>
+          </svg>
+          Boarding<br>Pass
+        </button>` : ''}
+    `;
+  }
+
+  function renderGuest(g, i) {
+    return `
+      <div class="guest">
+        <div class="guest-top">
+          <div class="guest-id">
+            <input type="checkbox" class="checkbox guest-check" data-index="${i}" data-name="${g.name}">
+            ${g.name}
+          </div>
+          <button class="add-btn" onclick="openAddMenu(event, '${g.name.replace(/'/g, "\\'")}')">ADD</button>
+        </div>
+        <div class="check-pill-row">${pill(g)}</div>
+        <div class="fields">
+          <div class="field">
+            <div class="field-label">Profile</div>
+            <div class="field-list">${profileRows(g)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Documents</div>
+            <div class="field-value">${g.docs}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Bags</div>
+            ${bagsField(g)}
+          </div>
+          <div class="field">
+            <div class="field-label">SSRs</div>
+            <div class="field-value">${g.ssrs}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Seats</div>
+            ${seatsField(g)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = guests.map(renderGuest).join('');
+
+  // ---------- ADD popover menu ----------
+  const addMenu = document.getElementById('addMenu');
+  const menuBackdrop = document.getElementById('menuBackdrop');
+  let activeGuest = null;
+
+  function openAddMenu(event, guestName) {
+    event.stopPropagation();
+    activeGuest = guestName;
+
+    const btn = event.currentTarget;
+    const btnRect = btn.getBoundingClientRect();
+    const stage = document.querySelector('.screen').getBoundingClientRect();
+
+    // Make menu visible first (off-screen) so we can read its size
+    addMenu.style.visibility = 'hidden';
+    addMenu.style.left = '0px';
+    addMenu.style.top = '0px';
+    addMenu.classList.add('show');
+    menuBackdrop.classList.add('show');
+
+    const menuW = addMenu.offsetWidth;
+    const menuH = addMenu.offsetHeight;
+
+    // Convert coordinates to stage-relative (menu is now a child of .screen)
+    let left = (btnRect.right - stage.left) - menuW;
+    let top  = (btnRect.bottom - stage.top) + 6;
+
+    // Clamp inside the 744x1133 stage
+    const stageW = stage.width;
+    const stageH = stage.height;
+    const padding = 8;
+    if (left < padding) left = padding;
+    if (left + menuW > stageW - padding) left = stageW - menuW - padding;
+    if (top + menuH > stageH - padding) {
+      // Flip above the button if not enough room below
+      top = (btnRect.top - stage.top) - menuH - 6;
+    }
+
+    addMenu.style.left = left + 'px';
+    addMenu.style.top  = top  + 'px';
+    addMenu.style.visibility = 'visible';
+  }
+
+  function closeAddMenu() {
+    addMenu.classList.remove('show');
+    menuBackdrop.classList.remove('show');
+    activeGuest = null;
+  }
+
+  menuBackdrop.addEventListener('click', closeAddMenu);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && addMenu.classList.contains('show')) closeAddMenu();
+  });
+
+  addMenu.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const action = item.dataset.action;
+      const hasSubmenu = item.dataset.submenu === 'true';
+      const target = activeGuest;
+      closeAddMenu();
+      if (action === 'Bag') {
+        openBagsModal(target, target ? [target] : null);
+      } else if (hasSubmenu) {
+        toast(`${action} options — ${target}`);
+      } else {
+        toast(`Add ${action} for ${target}`);
+      }
+    });
+  });
+
+  // Reposition / close on scroll inside the guest list or window
+  document.getElementById('guestsContainer').addEventListener('scroll', () => {
+    if (addMenu.classList.contains('show')) closeAddMenu();
+  }, true);
+  window.addEventListener('resize', () => {
+    if (addMenu.classList.contains('show')) closeAddMenu();
+  });
+
+  // ---------- Add Bags modal ----------
+  const BAG_TYPES = [
+    { type: 'Standard',                          sub: 'Up to 50lb · Max 62li',  group: 1, abbr: 'Standard',     subtitleAbbr: 'Standard Bag' },
+    { type: 'Overweight 51-70lb',                sub: '51-70lb',                group: 1, abbr: 'OW 51-70lb',   subtitleAbbr: 'OW 51-70lb',   displayTitle: 'Overweight', displaySub: '51-70lb' },
+    { type: 'Overweight 71-100lb',               sub: '71-100lb',               group: 1, abbr: 'OW 71-100lb',  subtitleAbbr: 'OW 71-100lb',  displayTitle: 'Overweight', displaySub: '71-100lb' },
+    { type: 'Oversize',                          sub: 'Up to 50lb · Max 115li', group: 2, abbr: 'Oversize',     subtitleAbbr: 'Oversize Bag' },
+    { type: 'Oversize & Overweight 51-70lb',     sub: '51–70lb',                group: 2, abbr: 'OS+OW 51-70',  subtitleAbbr: 'OS+OW 51-70lb', displayTitle: 'Oversize & Overweight', displaySub: '51–70lb' },
+    { type: 'Oversize & Overweight 71-100lb',    sub: '71–100lb',               group: 2, abbr: 'OS+OW 71-100', subtitleAbbr: 'OS+OW 71-100lb', displayTitle: 'Oversize & Overweight', displaySub: '71–100lb' },
+    { type: 'Waivers',                           sub: '',                       group: 3, abbr: 'Waivers',      subtitleAbbr: 'Waivers' }
+  ];
+
+  function getAbbr(typeKey) {
+    const b = BAG_TYPES.find(b => b.type === typeKey);
+    return b ? b.abbr : typeKey;
+  }
+  function getSubtitleAbbr(typeKey) {
+    const b = BAG_TYPES.find(b => b.type === typeKey);
+    return b ? b.subtitleAbbr : typeKey;
+  }
+
+  const bagsModal = document.getElementById('bagsModal');
+  const bagsCancel = document.getElementById('bagsCancel');
+  const bagsCta = document.getElementById('bagsModalCta');
+  const bagTypeListEl = document.getElementById('bagTypeList');
+
+  // Bag types shown in the modal (Waivers omitted in this version)
+  const MODAL_BAG_TYPES = BAG_TYPES.filter(b => b.type !== 'Waivers');
+
+  // Per-bag pricing for the modal total. Prices are illustrative for the prototype.
+  const BAG_PRICES = {
+    'Standard':                          50,
+    'Overweight 51-70lb':                100,
+    'Overweight 71-100lb':               200,
+    'Oversize':                          200,
+    'Oversize & Overweight 51-70lb':     300,
+    'Oversize & Overweight 71-100lb':    400,
+  };
+  function priceFor(typeKey) { return BAG_PRICES[typeKey] || 0; }
+
+  // Waived items — list shown in the item picker on the Waived Item sub-screen.
+  // Each item has a name and optional sub (weight/spec line shown muted under the name).
+  const WAIVED_ITEMS = [
+    { name: "1 Additional Scuba Piece",    sub: "" },
+    { name: "Wine Box",                     sub: "" },
+    { name: "Media Equipment",              sub: "Up to 50lb/23kg" },
+    { name: "Additional Fishing Pieces",    sub: "2 to 5" },
+    { name: "Sport Max",                    sub: "100lb 80li" },
+    { name: "Special Sport Max",            sub: "100lb 115li" },
+    { name: "Boot Bag",                     sub: "1 Free per Ski Snow" },
+    { name: "1 Additional Windsurf Piece",  sub: "" },
+    { name: "1 Additional Hockey Lacrosse", sub: "" },
+    { name: "2nd Pole Vault",               sub: "" },
+    { name: "Stroller or Pushchair",        sub: "" },
+    { name: "Sporting Equipment",           sub: "" },
+    { name: "Canoe or Kayak with Oars",     sub: "" },
+    { name: "Infant Car Seat",              sub: "" },
+    { name: "Assistive Devices",            sub: "" },
+  ];
+
+  // Waiver entries — each entry is one waived item assigned to one guest.
+  // Persisted across modal sessions like pending bags.
+  // Shape: [{ guestName: string | null, itemName: string | null, count: number }, ...]
+  //
+  // Two arrays:
+  //   waiverEntries        = the working draft (what the user is editing in the sub-screen)
+  //   committedWaivers     = the saved state (what was last committed via "Add Bags" CTA)
+  // CTA goes active when these differ. On commit, committedWaivers = clone(waiverEntries).
+  let waiverEntries = [];
+  let committedWaivers = [];
+
+  function cloneWaivers(arr) {
+    return arr.map(e => ({ guestName: e.guestName, itemName: e.itemName, count: e.count }));
+  }
+  function waiversEqual(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i].guestName !== b[i].guestName ||
+          a[i].itemName !== b[i].itemName ||
+          a[i].count !== b[i].count) return false;
+    }
+    return true;
+  }
+
+  // State: rows of { type, counts: { guestName: number } } — one row per visible bag type.
+  // counts represents the user's intended TOTAL of that bag type for each guest after commit
+  // (paid + pending). Stepper minus disables at the paid floor — pending bags are freely
+  // editable, paid bags are locked.
+  let bagsState = { rows: [], triggerGuest: null };
+
+  // Helper: read the pending (modal-editable) bag count for a guest+type.
+  // Paid bags are tags — they live in g.paidBagsByType but never surface in this UI.
+  function pendingFor(guestName, typeKey) {
+    const g = guests.find(gg => gg.name === guestName);
+    if (!g || !g.pendingBagsByType) return 0;
+    return g.pendingBagsByType[typeKey] || 0;
+  }
+
+  function openBagsModal(triggerGuest, scopedGuests) {
+    const scope = (scopedGuests && scopedGuests.length > 0) ? scopedGuests : null;
+    const scopeSet = scope ? new Set(scope) : null;
+
+    bagsState = {
+      triggerGuest: triggerGuest || null,
+      // Seed each guest's stepper with their currently pending bags of this type.
+      // Paid bags are "tags" — they live in the data but never surface in this stepper UI.
+      // Re-opening the modal restores the pending state so the user can edit further.
+      rows: MODAL_BAG_TYPES.map(b => {
+        const counts = {};
+        guests.forEach(g => {
+          const pending = pendingFor(g.name, b.type);
+          if (pending > 0) counts[g.name] = pending;
+        });
+        // Bulk Add Bags scope → pre-select those guests for Standard at count 1
+        // (or leave their existing pending count alone if it's already ≥ 1).
+        if (scopeSet && b.type === 'Standard') {
+          scopeSet.forEach(name => {
+            counts[name] = Math.max(counts[name] || 0, 1);
+          });
+        }
+        return { type: b.type, counts };
+      })
+    };
+
+    // Restore waiver entries from the last committed snapshot so the user can edit them.
+    waiverEntries = cloneWaivers(committedWaivers);
+
+    renderBagsModal();
+    bagsModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeBagsModal() {
+    bagsModal.classList.remove('show');
+    document.body.style.overflow = '';
+    hideGuestScreen();
+    hideWaivedScreen();
+    hidePicker();
+  }
+
+  function getDisplayHeading(typeKey) {
+    if (typeKey === 'Standard')                                return 'Standard Bag';
+    if (typeKey.startsWith('Overweight'))                       return 'Overweight Bag';
+    if (typeKey.startsWith('Oversize & Overweight'))            return 'Oversize & Overweight Bag';
+    if (typeKey.startsWith('Oversize'))                         return 'Oversize Bag';
+    if (typeKey === 'Waivers')                                  return 'Waivers';
+    return typeKey;
+  }
+
+  function getShortName(typeKey) {
+    if (typeKey === 'Standard')                       return 'Standard';
+    if (typeKey.startsWith('Overweight'))             return 'Overweight';
+    if (typeKey.startsWith('Oversize & Overweight'))  return 'Oversize & Overweight';
+    if (typeKey.startsWith('Oversize'))               return 'Oversize';
+    return typeKey;
+  }
+
+  function totalCount(row) {
+    return Object.values(row.counts).reduce((a, b) => a + b, 0);
+  }
+
+  // Row-label display: matches reference image
+  // "Standard"          first line
+  // "Up to 50lb · Max 62li"   second line muted
+  // "Overweight"        first line
+  // "51-70lb"           second line muted
+  // "Oversize + Overweight"
+  // "51-70lb"
+  function getRowTitle(typeKey) {
+    if (typeKey === 'Standard') return 'Standard';
+    if (typeKey.startsWith('Overweight')) return 'Overweight';
+    if (typeKey === 'Oversize') return 'Oversize';
+    if (typeKey.startsWith('Oversize & Overweight')) return 'Oversize + Overweight';
+    if (typeKey === 'Waivers') return 'Waivers';
+    return typeKey;
+  }
+  function getRowSub(typeKey) {
+    const b = BAG_TYPES.find(b => b.type === typeKey);
+    if (!b) return '';
+    // For Standard / Oversize show full sub ("Up to 50lb · Max 62li")
+    // For Overweight & Oversize+Overweight variants show weight range only ("51-70lb")
+    if (typeKey === 'Standard' || typeKey === 'Oversize') return b.sub;
+    if (b.displaySub) return b.displaySub;
+    return b.sub;
+  }
+
+  function commitBags() {
+    // Stepper values directly represent the user's pending bag count per guest+type.
+    // Paid bags (tags) live in g.paidBagsByType and don't surface in this UI at all.
+    const guestsAffected = new Set();
+    const addByType = {};
+
+    bagsState.rows.forEach(row => {
+      guests.forEach(g => {
+        if (!g.pendingBagsByType) g.pendingBagsByType = {};
+        const prevPending = g.pendingBagsByType[row.type] || 0;
+        const newPending = row.counts[g.name] || 0;
+        if (newPending !== prevPending) {
+          if (newPending === 0) delete g.pendingBagsByType[row.type];
+          else g.pendingBagsByType[row.type] = newPending;
+          guestsAffected.add(g.name);
+          if (newPending > prevPending) {
+            addByType[row.type] = (addByType[row.type] || 0) + 1;
+          }
+        }
+      });
+    });
+
+    // Recompute g.bags as the sum across paid + pending for everything
+    guests.forEach(g => {
+      let total = 0;
+      Object.values(g.paidBagsByType || {}).forEach(n => total += n);
+      Object.values(g.pendingBagsByType || {}).forEach(n => total += n);
+      g.bags = total;
+    });
+
+    // Re-render guest list (preserve checkboxes)
+    const checkedNames = new Set(
+      Array.from(document.querySelectorAll('.guest-check'))
+        .filter(c => c.checked)
+        .map(c => c.dataset.name)
+    );
+    container.innerHTML = guests.map(renderGuest).join('');
+    rebindChecks(checkedNames);
+
+    // Snapshot waivers on commit. Clean up empty entries before storing.
+    waiverEntries = waiverEntries.filter(e => e.guestName && e.itemName && e.count > 0);
+    committedWaivers = cloneWaivers(waiverEntries);
+    const waiverCount = committedWaivers.reduce((sum, e) => sum + e.count, 0);
+
+    // Success toast — covers bags + waivers
+    const addEntries = Object.entries(addByType);
+    if (addEntries.length === 0 && waiverCount === 0) return;
+    let title = 'Bags Successfully Added';
+    let sub;
+    if (addEntries.length === 1 && waiverCount === 0) {
+      const [t, gC] = addEntries[0];
+      sub = `${getDisplayHeading(t)} added to ${gC} guest${gC > 1 ? 's' : ''}.`;
+    } else if (addEntries.length > 1 && waiverCount === 0) {
+      sub = `${addEntries.length} bag types added across ${guestsAffected.size} guest${guestsAffected.size > 1 ? 's' : ''}.`;
+    } else if (addEntries.length === 0 && waiverCount > 0) {
+      title = 'Waivers Successfully Added';
+      sub = `${waiverCount} item${waiverCount > 1 ? 's' : ''} waived.`;
+    } else {
+      sub = `Bags and ${waiverCount} waived item${waiverCount > 1 ? 's' : ''} added.`;
+    }
+    showSuccessToast(title, sub);
+  }
+
+  function handleCtaCommit() {
+    if (bagsCta.disabled) return;
+    commitBags();
+    closeBagsModal();
+  }
+
+  function renderBagsModal() {
+    bagTypeListEl.innerHTML = '';
+
+    bagsState.rows.forEach((row, idx) => {
+      const title = getRowTitle(row.type);
+      const sub   = getRowSub(row.type);
+      // Count of guests with at least one bag of this type (stepper > 0)
+      const guestCount = Object.values(row.counts).filter(n => n > 0).length;
+      // Total bags of this type across all guests
+      const bagCount = Object.values(row.counts).reduce((a, b) => a + (b > 0 ? b : 0), 0);
+      const hasChanges = guestCount > 0;
+
+      const el = document.createElement('div');
+      el.className = `bt-row ${hasChanges ? 'assigned' : ''}`;
+      el.dataset.rowIndex = String(idx);
+      el.innerHTML = `
+        <div class="bt-left">
+          <span class="bt-title">${title}</span>
+          ${sub ? `<span class="bt-sub">${sub}</span>` : ''}
+        </div>
+        <div class="bt-right">
+          <div class="bt-right-top">
+            ${hasChanges
+              ? `<span class="bt-guest-count">${guestCount} guest${guestCount > 1 ? 's' : ''}</span>`
+              : `<span>Select guests</span>`}
+            <svg class="chev-r" width="9" height="14" viewBox="0 0 9 14" fill="none">
+              <path d="M1.5 1.5l5.5 5.5-5.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          ${hasChanges ? `<span class="bt-count">${bagCount} bag${bagCount > 1 ? 's' : ''} selected</span>` : ''}
+        </div>
+      `;
+      el.addEventListener('click', () => showGuestScreen(idx));
+      bagTypeListEl.appendChild(el);
+    });
+
+    // Waived Item row — sits below the bag-type list. Tapping opens the Waived Item
+    // sub-screen. When there are committed waivers, the row shows the count.
+    const totalWaivedItems = waiverEntries.reduce(
+      (sum, e) => sum + (e.guestName && e.itemName ? e.count : 0), 0
+    );
+    const hasWaivers = totalWaivedItems > 0;
+    const waivedRow = document.createElement('div');
+    waivedRow.className = `bt-row bt-waived ${hasWaivers ? 'assigned' : ''}`;
+    waivedRow.innerHTML = `
+      <div class="bt-left">
+        <span class="bt-title">Waived Item</span>
+      </div>
+      <div class="bt-right">
+        <div class="bt-right-top">
+          ${hasWaivers
+            ? `<span class="bt-guest-count">${totalWaivedItems} item${totalWaivedItems > 1 ? 's' : ''} waived</span>`
+            : ''}
+          <svg class="chev-r" width="9" height="14" viewBox="0 0 9 14" fill="none">
+            <path d="M1.5 1.5l5.5 5.5-5.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+    `;
+    waivedRow.addEventListener('click', () => showWaivedScreen());
+    bagTypeListEl.appendChild(waivedRow);
+
+    // ---- Footer summary ----
+    // Empty state:  italic muted "Select guests to continue" (no bags selected at all)
+    // Populated:    left "Total N bags" (paid + pending across all rows)
+    //               right "Total $XXXX" — only the price of the PENDING portion
+    //               (paid bags are already paid; what's shown is what'd be charged)
+    const summaryEmpty = document.getElementById('summaryEmpty');
+    const summaryLeft = document.getElementById('summaryLeft');
+    const summaryRight = document.getElementById('summaryRight');
+
+    let totalBags = 0;
+    let totalPrice = 0;
+    let hasPendingChange = false;  // any stepper differ from the saved pending state?
+
+    bagsState.rows.forEach(row => {
+      const rowBags = Object.values(row.counts).reduce((a, b) => a + (b > 0 ? b : 0), 0);
+      totalBags += rowBags;
+      totalPrice += rowBags * priceFor(row.type);
+
+      // CTA enabled only when there's an actual change vs the saved pending state.
+      guests.forEach(g => {
+        const savedPending = pendingFor(g.name, row.type);
+        const cur = row.counts[g.name] || 0;
+        if (cur !== savedPending) hasPendingChange = true;
+      });
+    });
+
+    if (totalBags > 0) {
+      summaryEmpty.hidden = true;
+      summaryLeft.hidden = false;
+      summaryRight.hidden = false;
+      summaryLeft.innerHTML = `Total <strong>${totalBags} bag${totalBags > 1 ? 's' : ''}</strong>`;
+      summaryRight.innerHTML = `Total <span class="price">$${totalPrice.toLocaleString()}</span>`;
+    } else {
+      summaryEmpty.hidden = false;
+      summaryLeft.hidden = true;
+      summaryRight.hidden = true;
+    }
+
+    // CTA — active only when there's an actual change to commit (bags OR waivers).
+    // Otherwise re-opening the modal and tapping "Add Bags" without edits is a no-op.
+    const waiverChanges = !waiversEqual(waiverEntries, committedWaivers);
+    bagsCta.textContent = 'Add Bags';
+    if (hasPendingChange || waiverChanges) {
+      bagsCta.classList.add('active');
+      bagsCta.disabled = false;
+    } else {
+      bagsCta.classList.remove('active');
+      bagsCta.disabled = true;
+    }
+  }
+
+  // Type name used in the bottom summary line ("1 Standard bag", "1 OW 51-70lb bag")
+  function getRowSummaryName(typeKey) {
+    if (typeKey === 'Standard')                       return 'Standard';
+    if (typeKey === 'Oversize')                       return 'Oversize';
+    if (typeKey === 'Waivers')                        return 'Waivers';
+    if (typeKey.startsWith('Overweight'))             return 'OW ' + typeKey.replace('Overweight ', '');
+    if (typeKey.startsWith('Oversize & Overweight'))  return 'OS+OW ' + typeKey.replace('Oversize & Overweight ', '');
+    return typeKey;
+  }
+
+  bagsCancel.addEventListener('click', closeBagsModal);
+  bagsCta.addEventListener('click', handleCtaCommit);
+
+  // Close modal on overlay click
+  bagsModal.addEventListener('click', (e) => {
+    if (e.target === bagsModal) closeBagsModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!bagsModal.classList.contains('show')) return;
+    if (e.key !== 'Escape') return;
+    if (pickerSheet.classList.contains('show')) {
+      hidePicker();
+    } else if (waivedScreen.classList.contains('show')) {
+      hideWaivedScreen();
+      renderBagsModal();
+    } else if (document.getElementById('guestScreen').classList.contains('show')) {
+      hideGuestScreen();
+    } else {
+      closeBagsModal();
+    }
+  });
+
+  // ---------- Helper: re-render guest list with checkbox state preserved ----------
+  function rebindChecks(checkedNames) {
+    const newChecks = document.querySelectorAll('.guest-check');
+    newChecks.forEach(c => {
+      if (checkedNames.has(c.dataset.name)) c.checked = true;
+      c.addEventListener('change', refreshCTA);
+    });
+    // Update the live "checks" reference used elsewhere
+    checks = newChecks;
+    refreshCTA();
+    // If a search query is active, re-apply it so the filter persists across re-renders.
+    if (typeof applySearchFilter === 'function') applySearchFilter();
+  }
+
+  // ---------- Select Guests sub-screen ----------
+  const guestScreen = document.getElementById('guestScreen');
+  const gsBack  = document.getElementById('gsBack');
+  const gsRows  = document.getElementById('gsRows');
+  const gsTypeName = document.getElementById('gsTypeName');
+  const gsAssignAll = document.getElementById('gsAssignAll');
+  const gsSearch = document.getElementById('gsSearch');
+  const gsSub = document.getElementById('gsSub');
+  let activeRowIndex = null;
+  let gsFilter = '';
+
+  function showGuestScreen(rowIndex) {
+    activeRowIndex = rowIndex;
+    gsFilter = '';
+    gsSearch.value = '';
+    const row = bagsState.rows[rowIndex];
+    const short = getShortName(row.type);
+    gsTypeName.textContent = short;
+    gsSub.textContent = `Tap to assign ${short.toLowerCase()} bags`;
+    renderGuestRows();
+    guestScreen.classList.add('show');
+    guestScreen.setAttribute('aria-hidden', 'false');
+  }
+
+  function hideGuestScreen() {
+    guestScreen.classList.remove('show');
+    guestScreen.setAttribute('aria-hidden', 'true');
+    activeRowIndex = null;
+  }
+
+  function renderGuestRows() {
+    if (activeRowIndex === null) return;
+    const row = bagsState.rows[activeRowIndex];
+    const filter = gsFilter.toLowerCase().trim();
+    // Always show every guest in the PNR.
+    const visible = guests.filter(g => !filter || g.name.toLowerCase().includes(filter));
+
+    // "Add 1 to All" / "Reset all" label:
+    // - "Reset all"     → every visible guest's stepper == 1 (the precise state produced
+    //                     by tapping "Add 1 to All"). Tapping resets each back to 0.
+    // - "Add 1 to All"  → any other state
+    const allAddedOne = visible.length > 0 && visible.every(g => (row.counts[g.name] || 0) === 1);
+    gsAssignAll.textContent = allAddedOne ? 'Reset all' : 'Add 1 to All';
+
+    gsRows.innerHTML = visible.map(g => {
+      const cur = row.counts[g.name] || 0;
+      const minusDisabled = cur <= 0;
+      const tierChip = g.tier
+        ? `<span class="tier-chip tier-${g.tier.toLowerCase()}">${g.tier}</span>`
+        : '';
+
+      return `
+        <div class="gs-row">
+          <span class="gs-name">${g.name}</span>
+          ${tierChip}
+          <div class="gs-stepper">
+            <button class="stepper-btn ${minusDisabled ? 'disabled' : ''}" data-action="minus" data-guest="${g.name.replace(/"/g, '&quot;')}" ${minusDisabled ? 'disabled' : ''} aria-label="Decrease">
+              <svg width="12" height="2" viewBox="0 0 12 2" fill="none"><path d="M1 1h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+            <span class="count">${cur}</span>
+            <button class="stepper-btn" data-action="plus" data-guest="${g.name.replace(/"/g, '&quot;')}" aria-label="Increase">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    gsRows.querySelectorAll('.stepper-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        const action = btn.dataset.action;
+        const name = btn.dataset.guest;
+        const r = bagsState.rows[activeRowIndex];
+        const cur = r.counts[name] || 0;
+        if (action === 'plus') {
+          r.counts[name] = cur + 1;
+        } else if (action === 'minus' && cur > 0) {
+          const next = cur - 1;
+          if (next === 0) delete r.counts[name];
+          else r.counts[name] = next;
+        }
+        renderGuestRows();
+      });
+    });
+  }
+
+  gsSearch.addEventListener('input', () => {
+    gsFilter = gsSearch.value;
+    renderGuestRows();
+  });
+
+  gsAssignAll.addEventListener('click', () => {
+    if (activeRowIndex === null) return;
+    const r = bagsState.rows[activeRowIndex];
+    const filter = gsFilter.toLowerCase().trim();
+    const visible = guests.filter(g => !filter || g.name.toLowerCase().includes(filter));
+
+    // "Reset all"     → every visible guest is at 1 → set each to 0
+    // "Add 1 to All"  → otherwise → set each visible guest to 1
+    const allAddedOne = visible.length > 0 && visible.every(g => (r.counts[g.name] || 0) === 1);
+    if (allAddedOne) {
+      visible.forEach(g => { delete r.counts[g.name]; });
+    } else {
+      visible.forEach(g => { r.counts[g.name] = 1; });
+    }
+    renderGuestRows();
+  });
+
+  gsBack.addEventListener('click', () => {
+    hideGuestScreen();
+    renderBagsModal();
+  });
+
+  // ---------- Waived Item sub-screen ----------
+  const waivedScreen = document.getElementById('waivedScreen');
+  const wvBack = document.getElementById('wvBack');
+  const wvEntries = document.getElementById('wvEntries');
+  const wvAddNew = document.getElementById('wvAddNew');
+
+  function showWaivedScreen() {
+    // If there are no entries yet, start with one empty entry so the user has
+    // something to fill in immediately. This matches the reference image which
+    // shows an entry card on first open.
+    if (waiverEntries.length === 0) {
+      waiverEntries.push({ guestName: null, itemName: null, count: 0 });
+    }
+    renderWaivedScreen();
+    waivedScreen.classList.add('show');
+    waivedScreen.setAttribute('aria-hidden', 'false');
+  }
+
+  function hideWaivedScreen() {
+    waivedScreen.classList.remove('show');
+    waivedScreen.setAttribute('aria-hidden', 'true');
+  }
+
+  function renderWaivedScreen() {
+    wvEntries.innerHTML = '';
+    waiverEntries.forEach((entry, idx) => {
+      const card = document.createElement('div');
+      card.className = 'wv-entry';
+
+      const guestLabel = entry.guestName || 'Select Guest';
+      const itemLabel  = entry.itemName  || 'Select Item';
+      const cur = entry.count || 0;
+      const minusDisabled = cur <= 0;
+      const stepperDisabled = !entry.itemName; // can't step before item picked
+
+      card.innerHTML = `
+        <div class="wv-entry-row">
+          <span class="wv-label">Select Guest</span>
+          <div class="wv-right">
+            <button class="wv-dropdown" type="button" data-action="pick-guest" data-idx="${idx}">
+              <span>${guestLabel}</span>
+              <svg class="wv-dd-chev" width="10" height="14" viewBox="0 0 10 14" fill="none">
+                <path d="M2 5l3-3 3 3M2 9l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="wv-entry-row">
+          <span class="wv-label">Select Item</span>
+          <div class="wv-right">
+            <button class="wv-dropdown" type="button" data-action="pick-item" data-idx="${idx}">
+              <span>${itemLabel}</span>
+              <svg class="wv-dd-chev" width="10" height="14" viewBox="0 0 10 14" fill="none">
+                <path d="M2 5l3-3 3 3M2 9l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="gs-stepper">
+              <button class="stepper-btn ${minusDisabled || stepperDisabled ? 'disabled' : ''}" type="button" data-action="minus" data-idx="${idx}" ${minusDisabled || stepperDisabled ? 'disabled' : ''} aria-label="Decrease">
+                <svg width="12" height="2" viewBox="0 0 12 2" fill="none"><path d="M1 1h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </button>
+              <span class="count">${cur}</span>
+              <button class="stepper-btn ${stepperDisabled ? 'disabled' : ''}" type="button" data-action="plus" data-idx="${idx}" ${stepperDisabled ? 'disabled' : ''} aria-label="Increase">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      wvEntries.appendChild(card);
+    });
+
+    // Wire row interactions
+    wvEntries.querySelectorAll('[data-action="pick-guest"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        openGuestPicker(btn, (name) => {
+          waiverEntries[idx].guestName = name;
+          renderWaivedScreen();
+        });
+      });
+    });
+    wvEntries.querySelectorAll('[data-action="pick-item"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        openItemPicker(btn, (item) => {
+          waiverEntries[idx].itemName = item;
+          if (waiverEntries[idx].count === 0) waiverEntries[idx].count = 1;
+          renderWaivedScreen();
+        });
+      });
+    });
+    wvEntries.querySelectorAll('[data-action="plus"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        const idx = parseInt(btn.dataset.idx, 10);
+        waiverEntries[idx].count++;
+        renderWaivedScreen();
+      });
+    });
+    wvEntries.querySelectorAll('[data-action="minus"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        const idx = parseInt(btn.dataset.idx, 10);
+        if (waiverEntries[idx].count > 0) {
+          waiverEntries[idx].count--;
+        }
+        // When stepper hits 0, the entry is auto-removed (no separate ×-button needed).
+        if (waiverEntries[idx].count === 0) {
+          waiverEntries.splice(idx, 1);
+          // Keep at least one entry on screen so the user has somewhere to start.
+          if (waiverEntries.length === 0) {
+            waiverEntries.push({ guestName: null, itemName: null, count: 0 });
+          }
+        }
+        renderWaivedScreen();
+      });
+    });
+  }
+
+  wvBack.addEventListener('click', () => {
+    // Drop any empty (no guest or no item) entries when leaving — they don't count.
+    waiverEntries = waiverEntries.filter(e => e.guestName && e.itemName && e.count > 0);
+    hideWaivedScreen();
+    renderBagsModal();
+  });
+
+  wvAddNew.addEventListener('click', () => {
+    // Append a fresh, empty entry card. Both Select Guest and Select Item rows start
+    // blank — the user fills them in from the card itself.
+    waiverEntries.push({ guestName: null, itemName: null, count: 0 });
+    renderWaivedScreen();
+  });
+
+  // ---------- Picker sheet (used for guest and item dropdowns) ----------
+  const pickerBackdrop = document.getElementById('pickerBackdrop');
+  const pickerSheet = document.getElementById('pickerSheet');
+  let pickerActive = null; // { onSelect, type }
+
+  function positionPicker(anchorEl) {
+    // Position the sheet below the anchor (the dropdown button that was tapped).
+    // Coordinates are stage-relative — the sheet is a child of the .screen stage,
+    // so we subtract the stage's viewport offset from getBoundingClientRect() values.
+    const stage = document.querySelector('.screen').getBoundingClientRect();
+    const rect  = anchorEl.getBoundingClientRect();
+    const sheetW = pickerSheet.offsetWidth || 380;
+    const sheetH = pickerSheet.offsetHeight || 400;
+    const stageW = stage.width;   // 744
+    const stageH = stage.height;  // 1133
+    const margin = 12;
+
+    // Right-align the sheet under the dropdown, converting to stage coords
+    let left = (rect.right - stage.left) - sheetW;
+    if (left < margin) left = margin;
+    if (left + sheetW > stageW - margin) left = stageW - margin - sheetW;
+
+    let top = (rect.bottom - stage.top) + 6;
+    if (top + sheetH > stageH - margin) {
+      // Not enough room below — try above the anchor.
+      const above = (rect.top - stage.top) - 6 - sheetH;
+      top = above >= margin ? above : (stageH - margin - sheetH);
+    }
+    pickerSheet.style.left = left + 'px';
+    pickerSheet.style.top  = top + 'px';
+  }
+
+  function openGuestPicker(anchorEl, onSelect) {
+    pickerActive = { onSelect, type: 'guest' };
+    pickerSheet.innerHTML = '<div class="picker-scroll">' +
+      guests.map(g => `
+        <button class="picker-row" type="button" data-name="${g.name.replace(/"/g, '&quot;')}">
+          <span class="picker-row-name">${g.name}</span>
+        </button>
+      `).join('') +
+      '</div>';
+    wireRows();
+    showPicker(anchorEl);
+  }
+
+  function openItemPicker(anchorEl, onSelect) {
+    pickerActive = { onSelect, type: 'item' };
+    pickerSheet.innerHTML = '<div class="picker-scroll">' +
+      WAIVED_ITEMS.map(it => `
+        <button class="picker-row" type="button" data-name="${it.name.replace(/"/g, '&quot;')}">
+          <span class="picker-row-name">${it.name}</span>
+          ${it.sub ? `<span class="picker-row-sub">${it.sub}</span>` : ''}
+        </button>
+      `).join('') +
+      '</div>';
+    wireRows();
+    showPicker(anchorEl);
+  }
+
+  function wireRows() {
+    pickerSheet.querySelectorAll('.picker-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const name = row.dataset.name;
+        const cb = pickerActive ? pickerActive.onSelect : null;
+        hidePicker();
+        if (cb) cb(name);
+      });
+    });
+  }
+
+  function showPicker(anchorEl) {
+    pickerSheet.style.visibility = 'hidden';
+    pickerSheet.classList.add('show');
+    pickerBackdrop.classList.add('show');
+    // After layout settles, measure & position
+    requestAnimationFrame(() => {
+      positionPicker(anchorEl);
+      pickerSheet.style.visibility = '';
+    });
+  }
+
+  function hidePicker() {
+    pickerSheet.classList.remove('show');
+    pickerBackdrop.classList.remove('show');
+    pickerActive = null;
+  }
+
+  pickerBackdrop.addEventListener('click', hidePicker);
+
+  // ---------- Toast ----------
+  let toastTimer;
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  let successToastTimer;
+  function showSuccessToast(title, sub) {
+    const st = document.getElementById('successToast');
+    document.getElementById('successToastTitle').textContent = title;
+    document.getElementById('successToastSub').textContent = sub;
+    st.classList.add('show');
+    clearTimeout(successToastTimer);
+    successToastTimer = setTimeout(() => st.classList.remove('show'), 3200);
+  }
+
+  let checks = document.querySelectorAll('.guest-check');
+  const selectAllBtn = document.getElementById('selectAll');
+  const cta = document.getElementById('selectGuestsBtn');
+  const addBagsCta = document.getElementById('addBagsCta');
+  const guestsCountEl = document.getElementById('guestsCount');
+
+  function refreshCTA() {
+    const selected = Array.from(checks).filter(c => c.checked);
+    if (selected.length > 0) {
+      cta.classList.add('active');
+      cta.disabled = false;
+      cta.textContent = 'Continue';
+      addBagsCta.hidden = false;
+      addBagsCta.textContent = 'Add Bags';
+    } else {
+      cta.classList.remove('active');
+      cta.disabled = true;
+      cta.textContent = 'Continue';
+      addBagsCta.hidden = true;
+    }
+    // Header label: "20 Guests" by default, "5 of 20 Guests" when there's a selection.
+    const total = checks.length;
+    if (selected.length > 0) {
+      guestsCountEl.innerHTML = `<span class="selected-frac">${selected.length} of</span> ${total} Guests`;
+    } else {
+      guestsCountEl.textContent = `${total} Guests`;
+    }
+    // "Select All" reflects the currently visible (filtered) guests, since that's what
+    // the action operates on. If everything visible is checked, the button toggles to "Deselect All".
+    const visible = Array.from(checks).filter(c => {
+      const row = c.closest('.guest');
+      return row && row.style.display !== 'none';
+    });
+    const list = visible.length > 0 ? visible : Array.from(checks);
+    const allVisibleChecked = list.length > 0 && list.every(c => c.checked);
+    selectAllBtn.textContent = allVisibleChecked ? 'Deselect All' : 'Select All';
+  }
+
+  checks.forEach(c => c.addEventListener('change', refreshCTA));
+
+  selectAllBtn.addEventListener('click', () => {
+    // Only act on guests currently visible (i.e., not filtered out by search).
+    const visible = Array.from(checks).filter(c => {
+      const row = c.closest('.guest');
+      return row && row.style.display !== 'none';
+    });
+    const list = visible.length > 0 ? visible : Array.from(checks);
+    const allChecked = list.every(c => c.checked);
+    list.forEach(c => c.checked = !allChecked);
+    refreshCTA();
+  });
+
+  cta.addEventListener('click', () => {
+    if (cta.disabled) return;
+    const names = Array.from(checks).filter(c => c.checked).map(c => c.dataset.name);
+    const preview = names.slice(0, 3).join(' • ');
+    const extra = names.length > 3 ? ` +${names.length - 3} more` : '';
+    toast(`Selected: ${preview}${extra}`);
+  });
+
+  addBagsCta.addEventListener('click', () => {
+    if (addBagsCta.hidden) return;
+    // Pass the names of currently selected guests so the bags modal
+    // scopes the Select Guests sub-screen to just those guests.
+    const selectedNames = Array.from(checks).filter(c => c.checked).map(c => c.dataset.name);
+    openBagsModal(null, selectedNames);
+  });
+
+  // ---------- Guest search (iOS-style) ----------
+  // Tap field → shows Cancel link beside it (iPad/iOS pattern), filters the list live.
+  // Tap Cancel or the clear (×) button → clears the query and dismisses focus.
+  // The keyboard surfacing is handled by the OS — input[type="search"] + inputmode="search"
+  // triggers the on-screen keyboard automatically on iPad when the field receives focus.
+  const searchInput  = document.getElementById('guestSearchInput');
+  const searchClear  = document.getElementById('guestSearchClear');
+  const searchCancel = document.getElementById('guestSearchCancel');
+  const searchField  = document.getElementById('guestSearchField');
+
+  let searchQuery = '';
+
+  function applySearchFilter() {
+    const q = searchQuery.toLowerCase().trim();
+    const guestEls = document.querySelectorAll('#guestsContainer .guest');
+    let visibleCount = 0;
+    guestEls.forEach(el => {
+      const checkbox = el.querySelector('.guest-check');
+      const name = checkbox ? (checkbox.dataset.name || '').toLowerCase() : '';
+      const match = !q || name.includes(q);
+      el.style.display = match ? '' : 'none';
+      if (match) visibleCount++;
+    });
+    // When searching, soften the header count to reflect filtered view
+    if (q && guestsCountEl) {
+      guestsCountEl.innerHTML = `<span class="selected-frac">${visibleCount} of</span> ${guests.length} Guests`;
+    } else {
+      refreshCTA();
+    }
+  }
+
+  function setSearchActive(active) {
+    if (active) {
+      searchCancel.hidden = false;
+    } else {
+      searchInput.value = '';
+      searchQuery = '';
+      searchClear.hidden = true;
+      searchCancel.hidden = true;
+      searchInput.blur();
+      applySearchFilter();
+    }
+  }
+
+  searchInput.addEventListener('focus', () => setSearchActive(true));
+  searchInput.addEventListener('input', () => {
+    searchQuery = searchInput.value;
+    searchClear.hidden = !searchQuery;
+    applySearchFilter();
+  });
+  searchInput.addEventListener('keydown', (e) => {
+    // iPad keyboard "Search" key dismisses focus; Esc clears
+    if (e.key === 'Enter') searchInput.blur();
+    if (e.key === 'Escape') setSearchActive(false);
+  });
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    searchQuery = '';
+    searchClear.hidden = true;
+    searchInput.focus();
+    applySearchFilter();
+  });
+  searchCancel.addEventListener('click', () => setSearchActive(false));
+</script>
+
+</body>
+</html>
