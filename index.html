@@ -1948,10 +1948,7 @@
     return g.pendingBagsByType[typeKey] || 0;
   }
 
-  function openBagsModal(triggerGuest, scopedGuests) {
-    const scope = (scopedGuests && scopedGuests.length > 0) ? scopedGuests : null;
-    const scopeSet = scope ? new Set(scope) : null;
-
+  function openBagsModal(triggerGuest /* scopedGuests param ignored — main-screen selection does NOT pre-select in the modal */) {
     bagsState = {
       triggerGuest: triggerGuest || null,
       // Seed each guest's stepper with their currently pending bags of this type.
@@ -1963,13 +1960,6 @@
           const pending = pendingFor(g.name, b.type);
           if (pending > 0) counts[g.name] = pending;
         });
-        // Bulk Add Bags scope → pre-select those guests for Standard at count 1
-        // (or leave their existing pending count alone if it's already ≥ 1).
-        if (scopeSet && b.type === 'Standard') {
-          scopeSet.forEach(name => {
-            counts[name] = Math.max(counts[name] || 0, 1);
-          });
-        }
         return { type: b.type, counts };
       })
     };
